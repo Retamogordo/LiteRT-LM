@@ -80,10 +80,7 @@ cc_library(
         "@kissfft//:kissfftr",
         "@litert//litert/c:litert_tensor_buffer_types",
         "@litert//litert/cc:litert_element_type",
-        "@litert//litert/cc:litert_layout",
         "@litert//litert/cc:litert_macros",
-        "@litert//litert/cc:litert_model",
-        "@litert//litert/cc:litert_tensor_buffer",
         "//runtime/engine:io_types",
         "//runtime/util:litert_status_util",
     ] + select({

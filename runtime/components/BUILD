@@ -337,6 +337,7 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@litert//litert/cc:litert_shared_library",
         "//runtime/executor:executor_settings_base",
         "//runtime/executor:llm_executor_settings",
         "//runtime/proto:sampler_params_cc_proto",
@@ -347,10 +348,11 @@ cc_library(
         ],
         "//conditions:default": [
             "@litert//litert/c:litert_common",
-            "@litert//litert/cc:litert_shared_library",
             "@litert//litert/cc:litert_tensor_buffer",
         ],
     }) + select({
+        # If CAPI is linked dynamically, need to link the sampler dynamically as well.
+        "@litert//litert:litert_link_capi_so": [],
         "@platforms//os:ios": [],
         "@platforms//os:macos": [],
         "@platforms//os:windows": [],

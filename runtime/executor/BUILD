@@ -156,9 +156,7 @@ cc_test(
         "//runtime/util:test_utils",
     ] + select({
         "@litert//litert:litert_link_capi_so": [
-            "@litert//litert/cc:litert_environment",
-            "@litert//litert/cc:litert_model",
-            "@litert//litert/cc:litert_tensor_buffer",
+            "@litert//litert/cc:litert_api_with_dynamic_runtime",
         ],
         "//conditions:default": [
             "@litert//litert/cc:litert_environment",
