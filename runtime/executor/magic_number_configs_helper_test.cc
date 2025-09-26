@@ -73,13 +73,12 @@ TEST(MagicNumberConfigsHelperTest, None_DefaultSettings) {
   auto executor_settings = GetLlmExecutorSettings();
   EXPECT_OK(executor_settings);
 
-  MagicNumberConfigsHelper helper(*model, *executor_settings);
+  MagicNumberConfigsHelper helper;
+  auto env_options = helper.GetLiteRtEnvOptions(*model, *executor_settings);
   // No magic number configs and verifications.
+  EXPECT_TRUE(env_options.empty());
   EXPECT_EQ(helper.magic_number_configs(), nullptr);
   EXPECT_EQ(helper.magic_number_verifications(), nullptr);
-
-  auto env_options = helper.GetLiteRtEnvOptions();
-  EXPECT_TRUE(env_options.empty());
 }
 
 TEST(MagicNumberConfigsHelperTest, None_ExplictSettings) {
@@ -91,13 +90,12 @@ TEST(MagicNumberConfigsHelperTest, None_ExplictSettings) {
   AdvancedSettings advanced_settings{.prefill_batch_size = 1024};
   executor_settings->SetAdvancedSettings(advanced_settings);
 
-  MagicNumberConfigsHelper helper(*model, *executor_settings);
+  MagicNumberConfigsHelper helper;
+  auto env_options = helper.GetLiteRtEnvOptions(*model, *executor_settings);
   // No magic number configs and verifications.
+  EXPECT_TRUE(env_options.empty());
   EXPECT_EQ(helper.magic_number_configs(), nullptr);
   EXPECT_EQ(helper.magic_number_verifications(), nullptr);
-
-  auto env_options = helper.GetLiteRtEnvOptions();
-  EXPECT_TRUE(env_options.empty());
 }
 
 TEST(MagicNumberConfigsHelperTest, ContextLength_DefaultSettings) {
@@ -106,7 +104,9 @@ TEST(MagicNumberConfigsHelperTest, ContextLength_DefaultSettings) {
   auto executor_settings = GetLlmExecutorSettings();
   EXPECT_OK(executor_settings);
 
-  MagicNumberConfigsHelper helper(*model, *executor_settings);
+  MagicNumberConfigsHelper helper;
+  auto env_options = helper.GetLiteRtEnvOptions(*model, *executor_settings);
+  EXPECT_EQ(env_options.size(), 1);
   EXPECT_NE(helper.magic_number_configs(), nullptr);
   EXPECT_EQ(helper.magic_number_configs()->num_configs, 1);
 
@@ -117,9 +117,6 @@ TEST(MagicNumberConfigsHelperTest, ContextLength_DefaultSettings) {
 
   // Verifications are disabled by default.
   EXPECT_EQ(helper.magic_number_verifications(), nullptr);
-
-  auto env_options = helper.GetLiteRtEnvOptions();
-  EXPECT_EQ(env_options.size(), 1);
 }
 
 TEST(MagicNumberConfigsHelperTest, ContextLength_ExplictSettings) {
@@ -129,7 +126,9 @@ TEST(MagicNumberConfigsHelperTest, ContextLength_ExplictSettings) {
   EXPECT_OK(executor_settings);
   executor_settings->SetMaxNumTokens(1280);
 
-  MagicNumberConfigsHelper helper(*model, *executor_settings);
+  MagicNumberConfigsHelper helper;
+  auto env_options = helper.GetLiteRtEnvOptions(*model, *executor_settings);
+  EXPECT_EQ(env_options.size(), 1);
   EXPECT_NE(helper.magic_number_configs(), nullptr);
   EXPECT_EQ(helper.magic_number_configs()->num_configs, 1);
 
@@ -140,9 +139,6 @@ TEST(MagicNumberConfigsHelperTest, ContextLength_ExplictSettings) {
 
   // Verifications are disabled by default.
   EXPECT_EQ(helper.magic_number_verifications(), nullptr);
-
-  auto env_options = helper.GetLiteRtEnvOptions();
-  EXPECT_EQ(env_options.size(), 1);
 }
 
 TEST(MagicNumberConfigsHelperTest,
@@ -153,7 +149,9 @@ TEST(MagicNumberConfigsHelperTest,
   EXPECT_OK(executor_settings);
   executor_settings->SetMaxNumTokens(9000);
 
-  MagicNumberConfigsHelper helper(*model, *executor_settings);
+  MagicNumberConfigsHelper helper;
+  auto env_options = helper.GetLiteRtEnvOptions(*model, *executor_settings);
+  EXPECT_EQ(env_options.size(), 1);
   EXPECT_NE(helper.magic_number_configs(), nullptr);
   EXPECT_EQ(helper.magic_number_configs()->num_configs, 1);
 
@@ -164,9 +162,6 @@ TEST(MagicNumberConfigsHelperTest,
 
   // Verifications are disabled by default.
   EXPECT_EQ(helper.magic_number_verifications(), nullptr);
-
-  auto env_options = helper.GetLiteRtEnvOptions();
-  EXPECT_EQ(env_options.size(), 1);
 }
 
 TEST(MagicNumberConfigsHelperTest,
@@ -179,7 +174,9 @@ TEST(MagicNumberConfigsHelperTest,
   AdvancedSettings advanced_settings{.verify_magic_numbers = true};
   executor_settings->SetAdvancedSettings(advanced_settings);
 
-  MagicNumberConfigsHelper helper(*model, *executor_settings);
+  MagicNumberConfigsHelper helper;
+  auto env_options = helper.GetLiteRtEnvOptions(*model, *executor_settings);
+  EXPECT_EQ(env_options.size(), 2);
   EXPECT_NE(helper.magic_number_configs(), nullptr);
   EXPECT_EQ(helper.magic_number_configs()->num_configs, 1);
 
@@ -202,9 +199,6 @@ TEST(MagicNumberConfigsHelperTest,
   EXPECT_EQ(std::string(verification1.signature), "prefill");
   EXPECT_EQ(std::string(verification1.test_signature), "test_prefill_1280");
   EXPECT_EQ(verification1.is_superset, true);
-
-  auto env_options = helper.GetLiteRtEnvOptions();
-  EXPECT_EQ(env_options.size(), 2);
 }
 
 TEST(MagicNumberConfigsHelperTest, Both_DefaultSettings) {
@@ -213,7 +207,9 @@ TEST(MagicNumberConfigsHelperTest, Both_DefaultSettings) {
   auto executor_settings = GetLlmExecutorSettings();
   EXPECT_OK(executor_settings);
 
-  MagicNumberConfigsHelper helper(*model, *executor_settings);
+  MagicNumberConfigsHelper helper;
+  auto env_options = helper.GetLiteRtEnvOptions(*model, *executor_settings);
+  EXPECT_EQ(env_options.size(), 1);
   EXPECT_NE(helper.magic_number_configs(), nullptr);
   EXPECT_EQ(helper.magic_number_configs()->num_configs, 2);
 
@@ -229,9 +225,6 @@ TEST(MagicNumberConfigsHelperTest, Both_DefaultSettings) {
 
   // Verifications are disabled by default.
   EXPECT_EQ(helper.magic_number_verifications(), nullptr);
-
-  auto env_options = helper.GetLiteRtEnvOptions();
-  EXPECT_EQ(env_options.size(), 1);
 }
 
 TEST(MagicNumberConfigsHelperTest, Both_ExplictSettings) {
@@ -243,7 +236,9 @@ TEST(MagicNumberConfigsHelperTest, Both_ExplictSettings) {
   AdvancedSettings advanced_settings{.prefill_batch_size = 1024};
   executor_settings->SetAdvancedSettings(advanced_settings);
 
-  MagicNumberConfigsHelper helper(*model, *executor_settings);
+  MagicNumberConfigsHelper helper;
+  auto env_options = helper.GetLiteRtEnvOptions(*model, *executor_settings);
+  EXPECT_EQ(env_options.size(), 1);
   EXPECT_NE(helper.magic_number_configs(), nullptr);
   EXPECT_EQ(helper.magic_number_configs()->num_configs, 2);
 
@@ -259,9 +254,6 @@ TEST(MagicNumberConfigsHelperTest, Both_ExplictSettings) {
 
   // Verifications are disabled by default.
   EXPECT_EQ(helper.magic_number_verifications(), nullptr);
-
-  auto env_options = helper.GetLiteRtEnvOptions();
-  EXPECT_EQ(env_options.size(), 1);
 }
 
 TEST(MagicNumberConfigsHelperTest, Both_ExplictSettingsLargerThanMagicNumbers) {
@@ -273,7 +265,9 @@ TEST(MagicNumberConfigsHelperTest, Both_ExplictSettingsLargerThanMagicNumbers) {
   AdvancedSettings advanced_settings{.prefill_batch_size = 5000};
   executor_settings->SetAdvancedSettings(advanced_settings);
 
-  MagicNumberConfigsHelper helper(*model, *executor_settings);
+  MagicNumberConfigsHelper helper;
+  auto env_options = helper.GetLiteRtEnvOptions(*model, *executor_settings);
+  EXPECT_EQ(env_options.size(), 1);
   EXPECT_NE(helper.magic_number_configs(), nullptr);
   EXPECT_EQ(helper.magic_number_configs()->num_configs, 2);
 
@@ -289,9 +283,6 @@ TEST(MagicNumberConfigsHelperTest, Both_ExplictSettingsLargerThanMagicNumbers) {
 
   // Verifications are disabled by default.
   EXPECT_EQ(helper.magic_number_verifications(), nullptr);
-
-  auto env_options = helper.GetLiteRtEnvOptions();
-  EXPECT_EQ(env_options.size(), 1);
 }
 
 TEST(MagicNumberConfigsHelperTest, Both_ExplictSettingsWithVerifications) {
@@ -304,7 +295,9 @@ TEST(MagicNumberConfigsHelperTest, Both_ExplictSettingsWithVerifications) {
                                      .verify_magic_numbers = true};
   executor_settings->SetAdvancedSettings(advanced_settings);
 
-  MagicNumberConfigsHelper helper(*model, *executor_settings);
+  MagicNumberConfigsHelper helper;
+  auto env_options = helper.GetLiteRtEnvOptions(*model, *executor_settings);
+  EXPECT_EQ(env_options.size(), 2);
   EXPECT_NE(helper.magic_number_configs(), nullptr);
   EXPECT_EQ(helper.magic_number_configs()->num_configs, 2);
 
@@ -332,9 +325,6 @@ TEST(MagicNumberConfigsHelperTest, Both_ExplictSettingsWithVerifications) {
   EXPECT_EQ(std::string(verification1.signature), "prefill");
   EXPECT_EQ(std::string(verification1.test_signature), "test_prefill_1280");
   EXPECT_EQ(verification1.is_superset, true);
-
-  auto env_options = helper.GetLiteRtEnvOptions();
-  EXPECT_EQ(env_options.size(), 2);
 }
 
 TEST(MagicNumberConfigsHelperTest,
@@ -348,7 +338,9 @@ TEST(MagicNumberConfigsHelperTest,
                                      .verify_magic_numbers = true};
   executor_settings->SetAdvancedSettings(advanced_settings);
 
-  MagicNumberConfigsHelper helper(*model, *executor_settings);
+  MagicNumberConfigsHelper helper;
+  auto env_options = helper.GetLiteRtEnvOptions(*model, *executor_settings);
+  EXPECT_EQ(env_options.size(), 2);
   EXPECT_NE(helper.magic_number_configs(), nullptr);
   EXPECT_EQ(helper.magic_number_configs()->num_configs, 2);
 
@@ -373,9 +365,6 @@ TEST(MagicNumberConfigsHelperTest,
 
   // prefill won't be verified because prefill_batch_size is not matched with
   // test_prefill_1280.
-
-  auto env_options = helper.GetLiteRtEnvOptions();
-  EXPECT_EQ(env_options.size(), 2);
 }
 
 }  // namespace

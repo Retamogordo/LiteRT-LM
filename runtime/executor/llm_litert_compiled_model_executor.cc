@@ -801,10 +801,10 @@ LlmLiteRtCompiledModelExecutor::Create(LlmExecutorSettings executor_settings,
   }
 
   std::vector<Environment::Option> env_options;
+  MagicNumberConfigsHelper helper;
   if (!executor_settings.GetAdvancedSettings() ||  // Default is true.
       executor_settings.GetAdvancedSettings()->configure_magic_numbers) {
-    MagicNumberConfigsHelper helper(*litert_model, executor_settings);
-    env_options = helper.GetLiteRtEnvOptions();
+    env_options = helper.GetLiteRtEnvOptions(*litert_model, executor_settings);
   }
 
   auto lrt_env = ::litert::Environment::Create(env_options);

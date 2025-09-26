@@ -202,12 +202,12 @@ int64_t GetTargetNumber(int64_t magic_number, int64_t target_number_hint) {
 
 }  // namespace
 
-MagicNumberConfigsHelper::MagicNumberConfigsHelper(
+std::vector<Environment::Option> MagicNumberConfigsHelper::GetLiteRtEnvOptions(
     const Model& litert_model, const LlmExecutorSettings& executor_settings) {
   auto magic_numbers = GetMagicNumbersFromModel(litert_model);
   if (!magic_numbers || (magic_numbers->context_length == 0 &&
                          magic_numbers->prefill_length == 0)) {
-    return;
+    return {};
   }
 
   // Build magic number configs.
@@ -262,13 +262,6 @@ MagicNumberConfigsHelper::MagicNumberConfigsHelper(
         verification.is_superset = true;
       }
     }
-  }
-}
-
-std::vector<Environment::Option> MagicNumberConfigsHelper::GetLiteRtEnvOptions()
-    const {
-  if (!magic_number_configs_ || magic_number_configs_->num_configs == 0) {
-    return {};
   }
 
   std::vector<Environment::Option> env_options;
