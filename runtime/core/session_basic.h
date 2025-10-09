@@ -73,6 +73,10 @@ class SessionBasic : public Engine::Session {
   absl::Status GenerateContentStream(
       const std::vector<InputData>& contents,
       std::unique_ptr<InferenceCallbacks> callbacks) override;
+  absl::Status GenerateContentStream(
+      const std::vector<InputData>& contents,
+      std::unique_ptr<InferenceCallbacks> callbacks,
+      const DecodeConfig& decode_config) override;
 
   // Scores the target text after the prefill process is done. This function
   // will only run the decode process to fetch the decode output logits, which

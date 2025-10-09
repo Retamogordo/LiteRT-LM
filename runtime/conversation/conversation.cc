@@ -200,9 +200,9 @@ absl::Status Conversation::SendMessageStream(
   internal_callbacks_adapter->SetCompleteMessageCallback(
       std::move(complete_message_callback));
 
-  RETURN_IF_ERROR(session_->RunPrefill(session_inputs));
-  RETURN_IF_ERROR(session_->RunDecodeAsync(
-      std::move(internal_callbacks_adapter), DecodeConfig::CreateDefault()));
+  RETURN_IF_ERROR(session_->GenerateContentStream(
+      session_inputs, std::move(internal_callbacks_adapter),
+      DecodeConfig::CreateDefault()));
   return absl::OkStatus();
 };
 

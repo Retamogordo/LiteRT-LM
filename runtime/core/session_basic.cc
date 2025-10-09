@@ -673,6 +673,14 @@ absl::StatusOr<Responses> SessionBasic::RunTextScoring(
 absl::Status SessionBasic::GenerateContentStream(
     const std::vector<InputData>& contents,
     std::unique_ptr<InferenceCallbacks> callbacks) {
+  return GenerateContentStream(contents, std::move(callbacks),
+                               DecodeConfig::CreateDefault());
+}
+
+absl::Status SessionBasic::GenerateContentStream(
+    const std::vector<InputData>& contents,
+    std::unique_ptr<InferenceCallbacks> callbacks,
+    const DecodeConfig& decode_config) {
   if (cancelled_.load()) {
     // Reset the cancelled flag before processing the next turn.
     cancelled_ = false;
@@ -683,8 +691,11 @@ absl::Status SessionBasic::GenerateContentStream(
   class PrefillCallbacks : public InferenceCallbacks {
    public:
     PrefillCallbacks(SessionBasic* session,
-                     std::unique_ptr<InferenceCallbacks> next_callbacks)
-        : session_(session), next_callbacks_(std::move(next_callbacks)) {}
+                     std::unique_ptr<InferenceCallbacks> next_callbacks,
+                     const DecodeConfig& decode_config)
+        : session_(session),
+          next_callbacks_(std::move(next_callbacks)),
+          decode_config_(decode_config) {}
 
     void OnNext(const Responses& responses) override {
       ABSL_LOG(WARNING) << "OnNext should not be called during prefill!";
@@ -695,8 +706,8 @@ absl::Status SessionBasic::GenerateContentStream(
     }
 
     void OnDone() override {
-      absl::Status status = session_->RunDecodeAsync(
-          std::move(next_callbacks_), DecodeConfig::CreateDefault());
+      absl::Status status =
+          session_->RunDecodeAsync(std::move(next_callbacks_), decode_config_);
       if (!status.ok()) {
         ABSL_LOG(ERROR) << "Failed to start decode async: " << status;
       }
@@ -705,10 +716,11 @@ absl::Status SessionBasic::GenerateContentStream(
    private:
     SessionBasic* session_;
     mutable std::unique_ptr<InferenceCallbacks> next_callbacks_;
+    DecodeConfig decode_config_;
   };
 
-  auto prefill_callbacks =
-      std::make_unique<PrefillCallbacks>(this, std::move(callbacks));
+  auto prefill_callbacks = std::make_unique<PrefillCallbacks>(
+      this, std::move(callbacks), decode_config);
   RETURN_IF_ERROR(RunPrefillAsync(contents, std::move(prefill_callbacks)));
   return absl::OkStatus();
 }

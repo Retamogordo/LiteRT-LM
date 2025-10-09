@@ -90,6 +90,13 @@ class Engine {
         const std::vector<InputData>& contents,
         std::unique_ptr<InferenceCallbacks> callbacks) = 0;
 
+    // Same as above, but with a custom decode config.
+    // - decode_config: configuration for the model decode process.
+    virtual absl::Status GenerateContentStream(
+        const std::vector<InputData>& contents,
+        std::unique_ptr<InferenceCallbacks> callbacks,
+        const DecodeConfig& decode_config) = 0;
+
     // Scores the target text after the prefill process is done. This function
     // will only run the decode process to fetch the decode output logits, which
     // is used to calculate the target text's score and update the model memory
