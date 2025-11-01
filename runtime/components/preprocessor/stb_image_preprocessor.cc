@@ -28,6 +28,7 @@
 #include "litert/cc/litert_macros.h"  // from @litert
 #include "litert/cc/litert_model.h"  // from @litert
 #include "litert/cc/litert_tensor_buffer.h"  // from @litert
+#include "litert/cc/litert_tensor_buffer_types.h"  // from @litert
 #include "runtime/components/preprocessor/image_preprocessor.h"
 #include "runtime/engine/io_types.h"
 #include "runtime/util/status_macros.h"  // IWYU pragma: keep
@@ -104,7 +105,7 @@ absl::StatusOr<InputImage> StbImagePreprocessor::Preprocess(
   LITERT_ASSIGN_OR_RETURN(
       auto processed_tensor_buffer,
       ::litert::TensorBuffer::CreateManaged(
-          kLiteRtTensorBufferTypeHostMemory,
+          ::litert::TensorBufferType::kHostMemory,
           MakeRankedTensorType<float>(
               {batch_size, target_height, target_width, target_channels}),
           buffer_size));
