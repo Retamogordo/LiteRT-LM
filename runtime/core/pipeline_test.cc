@@ -684,7 +684,7 @@ TEST_F(PipelineCustomSamplingTest,
 
   std::optional<BenchmarkInfo> benchmark_info;
 
-  // Run prefill first.
+  // Run prefill with <bos> token.
   std::vector<int> prefill_token_ids = {2};
   ASSERT_OK_AND_ASSIGN(auto token_ids_buffer,
                        tokenizer_->TokenIdsToTensorBuffer(prefill_token_ids));

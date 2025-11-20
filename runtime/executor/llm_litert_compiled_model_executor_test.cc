@@ -133,7 +133,7 @@ TEST(LlmLiteRtCompiledModelExecutorStaticTest, PrefillTest) {
 
   ExecutorInputs inputs;
   // Create a tensor buffer with 3 elements but only the first two elements
-  // match the expected prefill tokens.
+  // are actually processed.
   const std::vector<int> input_tokens = {1, 2, 0};
   LITERT_ASSERT_OK_AND_ASSIGN(
       auto input_tokens_buffer,
@@ -169,8 +169,7 @@ TEST(LlmLiteRtCompiledModelExecutorStaticTest, DecodeTest) {
   ASSERT_NE(executor, nullptr);
 
   ExecutorInputs inputs;
-  // Create a tensor buffer with 3 elements but only the first two elements
-  // match the expected prefill tokens.
+  // Create a tensor buffer with 3 elements.
   const std::vector<int> input_tokens = {1, 2, 0};
   LITERT_ASSERT_OK_AND_ASSIGN(
       auto input_tokens_buffer,
@@ -230,8 +229,7 @@ TEST(LlmLiteRtCompiledModelExecutorStaticTest, ConstrainedDecodeTest) {
   ASSERT_NE(executor, nullptr);
 
   ExecutorInputs inputs;
-  // Create a tensor buffer with 3 elements but only the first two elements
-  // match the expected prefill tokens.
+  // Create a tensor buffer with 3 elements.
   const std::vector<int> input_tokens = {1, 2, 0};
   LITERT_ASSERT_OK_AND_ASSIGN(
       auto input_tokens_buffer,
@@ -298,8 +296,7 @@ TEST(LlmLiteRtCompiledModelExecutorStaticTest, DecodeLogitsTest) {
   ASSERT_NE(executor, nullptr);
 
   ExecutorInputs inputs;
-  // Create a tensor buffer with 3 elements but only the first two elements
-  // match the expected prefill tokens.
+  // Create a tensor buffer with 1 element.
   const std::vector<int> input_tokens = {1};
   LITERT_ASSERT_OK_AND_ASSIGN(
       auto input_tokens_buffer,
