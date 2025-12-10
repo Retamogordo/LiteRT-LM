@@ -19,6 +19,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <filesystem>  // NOLINT
 #include <fstream>
 #include <functional>
 #include <iosfwd>
@@ -49,6 +50,27 @@ namespace lm {
 namespace schema {
 
 using litert::lm::proto::LlmMetadata;
+
+absl::StatusOr<bool> IsLiteRTLMFile(const std::string& path) {
+  if (!std::filesystem::exists(path)) {
+    return absl::NotFoundError(
+        absl::StrFormat("File does not exist: %s", path));
+  }
+
+  std::ifstream input_file_stream(path, std::ios::binary);
+  if (!input_file_stream.is_open()) {
+    return absl::InternalError(
+        absl::StrFormat("Could not open file: %s", path));
+  }
+
+  char magic_number[8];
+  input_file_stream.read(magic_number, 8);
+  if (input_file_stream.gcount() != 8 ||
+      std::string(magic_number, 8) != "LITERTLM") {
+    return false;
+  }
+  return true;
+}
 
 absl::Status ReadHeaderFromLiteRTLM(std::istream& litertlm_stream,
                                     LitertlmHeader* header) {
@@ -95,7 +117,6 @@ absl::Status ReadHeaderFromLiteRTLM(std::istream& litertlm_stream,
   if (!litertlm_stream) {
     return absl::InternalError("Failed to read header end offset.");
   }
-
 
   // Calculate the header size.
   std::streampos current_position = litertlm_stream.tellg();
@@ -161,7 +182,7 @@ absl::Status ReadValueTFromSection(
   LitertlmHeader header;
 
   // Read the header information.
-  RETURN_IF_ERROR(ReadHeaderFromLiteRTLM(litertlm_path, &header)); // NOLINT
+  RETURN_IF_ERROR(ReadHeaderFromLiteRTLM(litertlm_path, &header));  // NOLINT
 
   auto sections = header.metadata->section_metadata()->objects();
   // Check if the section_idx is valid.
@@ -447,7 +468,7 @@ absl::Status ReadAnyT(const std::string& litertlm_path, T* data,
   LitertlmHeader header;
 
   // Read the header information.
-  RETURN_IF_ERROR(ReadHeaderFromLiteRTLM(litertlm_path, &header)); // NOLINT
+  RETURN_IF_ERROR(ReadHeaderFromLiteRTLM(litertlm_path, &header));  // NOLINT
 
   // Search for the first section with the specified type.
   auto sections = header.metadata->section_metadata()->objects();

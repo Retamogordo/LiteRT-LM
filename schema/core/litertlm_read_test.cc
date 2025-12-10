@@ -58,6 +58,30 @@ absl::StatusOr<std::string> ReadFileToString(const std::string& filename) {
   return content;
 }
 
+TEST(LiteRTLMReadTest, IsLiteRTLMFileFileDoesNotExist) {
+  const auto input_filename =
+      std::filesystem::path(::testing::SrcDir()) /
+      "litert_lm/schema/testdata/does_not_exist.litertlm";
+  EXPECT_THAT(IsLiteRTLMFile(input_filename.string()),
+              testing::status::StatusIs(absl::StatusCode::kNotFound));
+}
+
+TEST(LiteRTLMReadTest, IsLiteRTLMFileValidFile) {
+  const auto input_filename =
+      std::filesystem::path(::testing::SrcDir()) /
+      "litert_lm/schema/testdata/test_tok_tfl_llm.litertlm";
+  EXPECT_THAT(IsLiteRTLMFile(input_filename.string()),
+              testing::status::IsOkAndHolds(true));
+}
+
+TEST(LiteRTLMReadTest, IsLiteRTLMFileInvalidFile) {
+  const auto input_filename =
+      std::filesystem::path(::testing::SrcDir()) /
+      "litert_lm/schema/testdata/attention.tflite";
+  EXPECT_THAT(IsLiteRTLMFile(input_filename.string()),
+              testing::status::IsOkAndHolds(false));
+}
+
 TEST(LiteRTLMReadTest, HeaderReadFile) {
   const auto input_filename =
       std::filesystem::path(::testing::SrcDir()) /
@@ -126,8 +150,8 @@ TEST(LiteRTLMReadTest, TFLiteRead) {
 
   std::unique_ptr<tflite::FlatBufferModel> model;
   std::unique_ptr<MemoryMappedFile> mapped_file;
-  absl::Status result = ReadTFLiteFileFromSection(
-      input_filename.string(), 1, &model, &mapped_file);
+  absl::Status result = ReadTFLiteFileFromSection(input_filename.string(), 1,
+                                                  &model, &mapped_file);
   ASSERT_OK(result);
   // Verify that buffer backing TFLite is still valid and reading data works.
   ASSERT_EQ(model->GetModel()->subgraphs()->size(), 1);
@@ -182,8 +206,8 @@ TEST(LiteRTLMReadTest, TFLiteRead_InvalidSection) {
 
   std::unique_ptr<tflite::FlatBufferModel> tflite_model;
   std::unique_ptr<MemoryMappedFile> mapped_file;
-  absl::Status result = ReadTFLiteFileFromSection(
-      input_filename.string(), 0, &tflite_model, &mapped_file);
+  absl::Status result = ReadTFLiteFileFromSection(input_filename.string(), 0,
+                                                  &tflite_model, &mapped_file);
   ASSERT_FALSE(result.ok());
   ASSERT_EQ(result.code(), absl::StatusCode::kInvalidArgument);
 }
