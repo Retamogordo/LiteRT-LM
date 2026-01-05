@@ -222,7 +222,13 @@ cc_library(
         "//runtime/util:litert_status_util",
         "//runtime/util:memory_mapped_file",
         "@tokenizers_cpp//:huggingface_tokenizer",
-    ],
+    ] + select({
+        "@platforms//os:windows": [
+            "//rust:alloc_defs",
+            "//rust:global_allocator",
+        ],
+        "//conditions:default": [],
+    }),
 )
 
 cc_test(
