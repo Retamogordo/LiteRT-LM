@@ -101,6 +101,12 @@ class LlmExecutorBase {
         "GetCurrentStep not implemented for backend: ", ExecutorBackendName()));
   };
 
+  virtual absl::Status SetCurrentStep(int current_step) {
+    return absl::UnimplementedError(
+        absl::StrCat("SetCurrentStep not implemented for backend: ",
+                     ExecutorBackendName()));
+  };
+
   // Gets the executor settings of the executor.
   virtual absl::StatusOr<LlmExecutorSettings> GetExecutorSettings() const {
     return absl::UnimplementedError(

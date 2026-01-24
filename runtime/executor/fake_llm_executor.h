@@ -85,6 +85,11 @@ class FakeLlmExecutor : public LlmExecutor {
   };
   absl::StatusOr<int> GetCurrentStep() const override { return current_step_; }
 
+  absl::Status SetCurrentStep(int current_step) override {
+    current_step_ = current_step;
+    return absl::OkStatus();
+  }
+
   // Sets the status to be returned by the Prefill function.
   void SetPrefillStatus(const absl::Status& status) {
     prefill_status_ = status;

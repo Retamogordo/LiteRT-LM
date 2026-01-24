@@ -234,6 +234,7 @@ cc_library(
         ":llm_executor_processed_tokens",
         ":llm_executor_settings",
         ":llm_litert_compiled_model_cache_utils",
+        ":llm_processed_context",
         ":magic_number_configs_helper",
         "@com_google_absl//absl/base:nullability",
         "@com_google_absl//absl/container:flat_hash_map",
@@ -323,6 +324,24 @@ cc_test(
             "@litert//litert/cc:litert_layout",
             "@litert//litert/cc:litert_macros",
             "@litert//litert/cc:litert_model",
+        ],
+    }),
+)
+
+cc_library(
+    name = "llm_processed_context",
+    hdrs = ["llm_processed_context.h"],
+    deps = [
+        ":llm_executor_io_types",
+        ":llm_executor_processed_tokens",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/strings:string_view",
+    ] + select({
+        "@litert//litert:litert_link_capi_so": [
+            "@litert//litert/cc:litert_api_with_dynamic_runtime",
+        ],
+        "//conditions:default": [
+            "@litert//litert/cc:litert_tensor_buffer",
         ],
     }),
 )

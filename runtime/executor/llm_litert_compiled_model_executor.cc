@@ -70,7 +70,6 @@ namespace litert::lm {
 namespace {
 
 using ::absl::Span;
-using ::litert::Expected;
 using ::litert::GpuOptions;
 using ::litert::TensorBuffer;
 
@@ -474,15 +473,22 @@ absl::Status LlmLiteRtCompiledModelExecutorBase::FillInputBufferWithToken(
 }
 
 absl::Status LlmLiteRtCompiledModelExecutorBase::RollBackProcessedTokens() {
-  if (current_step_ == processed_tokens_.TokenCount()) {
+  if (llm_context_->runtime_state().current_step ==
+      llm_context_->processed_context().processed_tokens().TokenCount()) {
     return absl::OkStatus();
   }
-  if (current_step_ == 0) {
-    RETURN_IF_ERROR(processed_tokens_.RollBackToStep(0));
+  if (llm_context_->runtime_state().current_step == 0) {
+    RETURN_IF_ERROR(
+        llm_context_->processed_context().processed_tokens().RollBackToStep(0));
   } else {
-    auto step_and_token = processed_tokens_.GetTokenAtStep(current_step_ - 1);
-    RETURN_IF_ERROR(processed_tokens_.RollBackToStep(current_step_ - 1));
-    processed_tokens_.AddProcessedTokens({step_and_token});
+    auto step_and_token =
+        llm_context_->processed_context().processed_tokens().GetTokenAtStep(
+            llm_context_->runtime_state().current_step - 1);
+    RETURN_IF_ERROR(
+        llm_context_->processed_context().processed_tokens().RollBackToStep(
+            llm_context_->runtime_state().current_step - 1));
+    llm_context_->processed_context().processed_tokens().AddProcessedTokens(
+        {step_and_token});
   }
 
   // Reset sampler input handling as the step is rolled back.
@@ -501,11 +507,17 @@ absl::Status LlmLiteRtCompiledModelExecutorBase::PrepareFirstPrefillAfterDecode(
 
   ran_decode_ = false;
 
-  if (output_batch_size_ > 1) {
+  int output_heads = 1;
+  if (llm_context_->runtime_config().output_heads.has_value()) {
+    output_heads = llm_context_->runtime_config().output_heads.value();
+  }
+
+  if (output_heads > 1) {
+    LITERT_RETURN_IF_ERROR(llm_context_->processed_context()
+                               .processed_tokens()
+                               .ReduceTokenCandidates(token_index_to_reduce));
     LITERT_RETURN_IF_ERROR(
-        processed_tokens_.ReduceTokenCandidates(token_index_to_reduce));
-    LITERT_RETURN_IF_ERROR(
-        CopyKvCacheBuffers(output_batch_size_, token_index_to_reduce,
+        CopyKvCacheBuffers(output_heads, token_index_to_reduce,
                            *input_kv_cache_buffers_, kv_cache_buffers_1_));
     input_kv_cache_buffers_ = &kv_cache_buffers_1_;
     output_kv_cache_buffers_ = &kv_cache_buffers_2_;
@@ -553,7 +565,9 @@ absl::Status LlmLiteRtCompiledModelExecutorBase::PrefillInternal(
     // Check if have a pending input token. Note that 'internal_start_step' is
     // always equal to the number of processed tokens plus 1.
     auto [internal_start_step, pending_input_token] =
-        processed_tokens_.GetNextUnprocessedToken();
+        llm_context_->processed_context()
+            .processed_tokens()
+            .GetNextUnprocessedToken();
     RET_CHECK_LE(pending_input_token.size(), 1);
     const int start_step = internal_start_step;
     const bool has_pending_input_token = !pending_input_token.empty();
@@ -563,8 +577,11 @@ absl::Status LlmLiteRtCompiledModelExecutorBase::PrefillInternal(
     // If there is no pending input token and no input token to prefill, we can
     // return early by storing the token as a pending input token.
     if (!has_pending_input_token && prefill_length == 0) {
-      RETURN_IF_ERROR(processed_tokens_.AddPendingInputToken(
-          {std::make_shared<TokenData>(ids[0])}));
+      RETURN_IF_ERROR(
+          llm_context_->processed_context()
+              .processed_tokens()
+              .AddPendingInputToken({std::make_shared<TokenData>(ids[0])}));
+      ++llm_context_->runtime_state().current_step;
       return absl::OkStatus();
     }
     int input_idx = 0;
@@ -586,17 +603,21 @@ absl::Status LlmLiteRtCompiledModelExecutorBase::PrefillInternal(
         }
       }
       prefill_input_pos_ptr[input_idx] = internal_start_step;
-      RETURN_IF_ERROR(processed_tokens_.MarkPendingInputTokenAsProcessed());
+      RETURN_IF_ERROR(llm_context_->processed_context()
+                          .processed_tokens()
+                          .MarkPendingInputTokenAsProcessed());
       ++prefill_input_pos_ptr;
       ++input_idx;
     }
     std::transform(prefill_input_pos_ptr,
                    prefill_input_pos_ptr + prefill_length,
-                   prefill_input_pos_ptr,
-                   [&](int token) mutable { return current_step_++; });
+                   prefill_input_pos_ptr, [&](int token) mutable {
+                     return llm_context_->runtime_state().current_step++;
+                   });
     std::vector<int> processed_input_tokens(ids.begin(),
                                             ids.begin() + prefill_length);
-    processed_tokens_.AddProcessedTokens(processed_input_tokens);
+    llm_context_->processed_context().processed_tokens().AddProcessedTokens(
+        processed_input_tokens);
 
     if (use_token_as_lookup) {
       auto& prefill_input_buffer =
@@ -664,9 +685,10 @@ absl::Status LlmLiteRtCompiledModelExecutorBase::PrefillInternal(
       }
     }
     // Add the last input token to the pending input token list.
-    RETURN_IF_ERROR(
-        processed_tokens_.AddPendingInputToken({std::move(last_input_token)}));
-    ++current_step_;
+    RETURN_IF_ERROR(llm_context_->processed_context()
+                        .processed_tokens()
+                        .AddPendingInputToken({std::move(last_input_token)}));
+    ++llm_context_->runtime_state().current_step;
   }
 
   absl::flat_hash_map<absl::string_view, ::litert::TensorBuffer> input_buffers;
@@ -707,29 +729,40 @@ LlmLiteRtCompiledModelExecutorBase::GetTokenToDecode(
   if (inputs.GetTextDataPtr().ok()) {
     auto input_tensor_size = (*inputs.GetTextTokenIdsPtr())->PackedSize();
     if (input_tensor_size && *input_tensor_size != 0) {
+      int output_heads = 1;
+      if (llm_context_->runtime_config().output_heads.has_value()) {
+        output_heads = llm_context_->runtime_config().output_heads.value();
+      }
       // Input token ids provided, so use it regardless of whether next input
       // token id is set.
-      RET_CHECK_EQ(*input_tensor_size, output_batch_size_ * sizeof(int32_t));
+      RET_CHECK_EQ(*input_tensor_size, output_heads * sizeof(int32_t));
       LITERT_ASSIGN_OR_RETURN(auto ids, ReferTensorBufferAsSpan<int32_t>(
                                             *(*inputs.GetTextTokenIdsPtr())));
       if (ids[0] >= 0) {
         // If the input token id is >= 0, it means the input token is provided
         // by the user. In this case, we should invalidate the pending input
         // token and add the input token as a pending input token.
-        processed_tokens_.InvalidatePendingInputToken();
+        llm_context_->processed_context()
+            .processed_tokens()
+            .InvalidatePendingInputToken();
         std::vector<std::shared_ptr<TokenData>> token;
-        token.reserve(output_batch_size_);
-        for (int i = 0; i < output_batch_size_; ++i) {
+        token.reserve(output_heads);
+        for (int i = 0; i < output_heads; ++i) {
           token.push_back(std::make_shared<TokenData>(ids[i]));
         }
-        RETURN_IF_ERROR(processed_tokens_.AddPendingInputToken(token));
+        RETURN_IF_ERROR(llm_context_->processed_context()
+                            .processed_tokens()
+                            .AddPendingInputToken(token));
       }
     }
   }
 
   // Here we must have a pending input token to decode that's either coming from
   // the previous prefill or decode, or we just added one from the inputs.
-  for (const auto& token : processed_tokens_.GetNextUnprocessedToken().token) {
+  for (const auto& token : llm_context_->processed_context()
+                               .processed_tokens()
+                               .GetNextUnprocessedToken()
+                               .token) {
     // If the token has no embedding, we will look up the embedding for the
     // token here. This reduces the complexity for internal or external
     // sampling.
@@ -743,13 +776,17 @@ LlmLiteRtCompiledModelExecutorBase::GetTokenToDecode(
       }
     }
   }
-  return processed_tokens_.GetNextUnprocessedToken();
+  return llm_context_->processed_context()
+      .processed_tokens()
+      .GetNextUnprocessedToken();
 }
 
 absl::Status
 LlmLiteRtCompiledModelExecutorBase::ConsumePendingOrAddProcessedToken(
     const std::vector<std::shared_ptr<TokenData>>& token) {
-  auto status = processed_tokens_.MarkPendingInputTokenAsProcessed();
+  auto status = llm_context_->processed_context()
+                    .processed_tokens()
+                    .MarkPendingInputTokenAsProcessed();
   if (status.ok() || status.code() != absl::StatusCode::kNotFound) {
     return status;
   }
@@ -757,18 +794,24 @@ LlmLiteRtCompiledModelExecutorBase::ConsumePendingOrAddProcessedToken(
   // If the pending input token was not used, we should add the token to the
   // processed tokens.
   std::vector<int> processed_tokens;
-  processed_tokens.reserve(output_batch_size_);
+  int output_heads = 1;
+  if (llm_context_->runtime_config().output_heads.has_value()) {
+    output_heads = llm_context_->runtime_config().output_heads.value();
+  }
+  processed_tokens.reserve(output_heads);
   for (const auto& t : token) {
     processed_tokens.push_back(t->id());
   }
-  processed_tokens_.AddProcessedTokens(processed_tokens);
+  llm_context_->processed_context().processed_tokens().AddProcessedTokens(
+      processed_tokens);
+  ++llm_context_->runtime_state().current_step;
   return absl::OkStatus();
 }
 
 absl::Status LlmLiteRtCompiledModelExecutorBase::DecodeInternal(
     const std::vector<std::shared_ptr<TokenData>>& token,
     TensorBuffer& output_logits) {
-  int step = current_step_ - 1;
+  int step = llm_context_->runtime_state().current_step - 1;
   if (sampler_ && sampler_->HandlesInput()) {
     // The sampler has already been running decode for this step. Check if
     // output_logits is the one used last time, i.e. by
@@ -815,12 +858,16 @@ absl::Status LlmLiteRtCompiledModelExecutorBase::DecodeInternal(
     if (input_pos_type.Layout().Dimensions()[0] == 1) {
       *input_pos_ptr = step;
     } else {
-      RET_CHECK_EQ(input_pos_type.Layout().Dimensions()[0], output_batch_size_);
+      int output_heads = 1;
+      if (llm_context_->runtime_config().output_heads.has_value()) {
+        output_heads = llm_context_->runtime_config().output_heads.value();
+      }
+      RET_CHECK_EQ(input_pos_type.Layout().Dimensions()[0], output_heads);
       LITERT_ASSIGN_OR_RETURN(
           auto input_pos_size,
           decode_input_buffers_[signatures_.input_positions].PackedSize());
-      size_t offset = input_pos_size / output_batch_size_ / sizeof(int32_t);
-      for (int i = 0; i < output_batch_size_; ++i) {
+      size_t offset = input_pos_size / output_heads / sizeof(int32_t);
+      for (int i = 0; i < output_heads; ++i) {
         input_pos_ptr[i * offset] = step;
       }
     }
@@ -897,19 +944,25 @@ absl::Status LlmLiteRtCompiledModelExecutorBase::PrepareFirstDecode() {
   // Mark that we have run decode at least once.
   ran_decode_ = true;
 
-  if (output_batch_size_ <= 1) {
+  int output_heads = 1;
+  if (llm_context_->runtime_config().output_heads.has_value()) {
+    output_heads = llm_context_->runtime_config().output_heads.value();
+  }
+
+  if (output_heads <= 1) {
     return absl::OkStatus();
   }
 
-  LITERT_RETURN_IF_ERROR(
-      processed_tokens_.BroadcastTokenCandidates(output_batch_size_));
+  LITERT_RETURN_IF_ERROR(llm_context_->processed_context()
+                             .processed_tokens()
+                             .BroadcastTokenCandidates(output_heads));
 
   LITERT_RETURN_IF_ERROR(decode_kv_cache_buffers_1_.has_value());
   LITERT_RETURN_IF_ERROR(decode_kv_cache_buffers_2_.has_value());
   // Broadcast the prefill kv cache buffers to the decode kv cache buffers.
   // This is only needed when decode batch size > 1.
   LITERT_RETURN_IF_ERROR(CopyKvCacheBuffers(
-      output_batch_size_, /*src_index_to_copy_on_prefill=*/-1,
+      output_heads, /*src_index_to_copy_on_prefill=*/-1,
       *input_kv_cache_buffers_, *decode_kv_cache_buffers_1_));
   input_kv_cache_buffers_ = &decode_kv_cache_buffers_1_.value();
   output_kv_cache_buffers_ = &decode_kv_cache_buffers_2_.value();
@@ -931,22 +984,28 @@ absl::Status LlmLiteRtCompiledModelExecutorBase::Decode(
   RETURN_IF_ERROR(SampleLogits(decoded_logits, output_tokens));
 
   LITERT_ASSIGN_OR_RETURN(auto output_tokens_size, output_tokens.PackedSize());
-  RET_CHECK_EQ(output_tokens_size, output_batch_size_ * sizeof(int32_t));
+  int output_heads = 1;
+  if (llm_context_->runtime_config().output_heads.has_value()) {
+    output_heads = llm_context_->runtime_config().output_heads.value();
+  }
+  RET_CHECK_EQ(output_tokens_size, output_heads * sizeof(int32_t));
 
   bool has_invalid_output_token = false;
   {
     std::vector<std::shared_ptr<TokenData>> tokens;
-    tokens.reserve(output_batch_size_);
+    tokens.reserve(output_heads);
     LITERT_ASSIGN_OR_RETURN(auto lock_and_addr,
                             ::litert::TensorBufferScopedLock::Create(
                                 output_tokens, TensorBuffer::LockMode::kRead));
     auto output_token_span = absl::MakeConstSpan(
-        static_cast<int32_t*>(lock_and_addr.second), output_batch_size_);
+        static_cast<int32_t*>(lock_and_addr.second), output_heads);
     for (auto tid : output_token_span) {
       has_invalid_output_token |= tid < 0;
       tokens.push_back(std::make_shared<TokenData>(tid < 0 ? 0 : tid));
     }
-    RETURN_IF_ERROR(processed_tokens_.AddPendingInputToken(tokens));
+    RETURN_IF_ERROR(llm_context_->processed_context()
+                        .processed_tokens()
+                        .AddPendingInputToken(tokens));
   }
 
   // Reset invalid token IDs if any.
@@ -958,7 +1017,7 @@ absl::Status LlmLiteRtCompiledModelExecutorBase::Decode(
         ::litert::TensorBufferScopedLock::Create(
             output_tokens, TensorBuffer::LockMode::kReadWrite));
     auto output_token_span = absl::MakeSpan(
-        static_cast<int32_t*>(lock_and_addr.second), output_batch_size_);
+        static_cast<int32_t*>(lock_and_addr.second), output_heads);
     for (auto& tid : output_token_span) {
       if (tid < 0) {
         tid = 0;
@@ -974,7 +1033,7 @@ absl::Status LlmLiteRtCompiledModelExecutorBase::Decode(
   ASSIGN_OR_RETURN(auto step_and_token, GetTokenToDecode(inputs));
   RETURN_IF_ERROR(DecodeInternal(step_and_token.token, output_logits));
   RETURN_IF_ERROR(ConsumePendingOrAddProcessedToken(step_and_token.token));
-  ++current_step_;
+  ++llm_context_->runtime_state().current_step;
   return absl::OkStatus();
 }
 
@@ -997,9 +1056,14 @@ LlmLiteRtCompiledModelExecutorBase::DecodeLogits(
   RETURN_IF_ERROR(ConsumePendingOrAddProcessedToken(step_and_token.token));
 
   if (decode_params.HasConstraintDecoder() && !step_and_token.token.empty()) {
-    RET_CHECK_EQ(step_and_token.token.size(), output_batch_size_);
+    int output_heads = 1;
+    if (llm_context_->runtime_config().output_heads.has_value()) {
+      output_heads = llm_context_->runtime_config().output_heads.value();
+    }
+
+    RET_CHECK_EQ(step_and_token.token.size(), output_heads);
     std::vector<int> current_token_ids;
-    current_token_ids.reserve(output_batch_size_);
+    current_token_ids.reserve(output_heads);
     for (const auto& token : step_and_token.token) {
       current_token_ids.push_back(token->id());
     }
@@ -1040,7 +1104,7 @@ LlmLiteRtCompiledModelExecutorBase::DecodeLogits(
     }
   }
 
-  ++current_step_;
+  ++llm_context_->runtime_state().current_step;
 
   const auto& settings = executor_settings_.GetAdvancedSettings();
   if (settings && settings->num_logits_to_print_after_decode > 0) {
@@ -1057,6 +1121,10 @@ absl::Status LlmLiteRtCompiledModelExecutorBase::InitializeSampler() {
 
   ASSIGN_OR_RETURN(auto vocab_size, GetVocabSize());
   ASSIGN_OR_RETURN(auto sampler_backend, GetSamplerBackend(executor_settings_));
+  int output_heads = 1;
+  if (llm_context_->runtime_config().output_heads.has_value()) {
+    output_heads = llm_context_->runtime_config().output_heads.value();
+  }
   proto::SamplerParameters sampler_params;
   sampler_params.set_type(proto::SamplerParameters::TOP_P);
   sampler_params.set_k(1);
@@ -1064,9 +1132,9 @@ absl::Status LlmLiteRtCompiledModelExecutorBase::InitializeSampler() {
   sampler_params.set_temperature(1.0f);
   sampler_params.set_seed(0);
   ASSIGN_OR_RETURN(
-      sampler_, CreateSampler(sampler_backend, output_batch_size_,
-                              std::move(sampler_params), env_.Get(), vocab_size,
-                              logits_data_type_));
+      sampler_,
+      CreateSampler(sampler_backend, output_heads, std::move(sampler_params),
+                    env_.Get(), vocab_size, logits_data_type_));
 
   // If the sampler can handle input, prepare the input tensors for it.
   sampler_handles_input_ =
@@ -1140,8 +1208,34 @@ absl::Status LlmLiteRtCompiledModelExecutorBase::SampleLogits(
   return absl::OkStatus();
 }
 
+absl::Status LlmLiteRtCompiledModelExecutorBase::SetCurrentStep(int new_step) {
+  ASSIGN_OR_RETURN(int current_external_step, GetCurrentStep());
+  RET_CHECK_LE(new_step, current_external_step)
+          .SetCode(absl::StatusCode::kInvalidArgument)
+      << "New step cannot be greater than the current step: "
+      << current_external_step;
+  RET_CHECK_GE(new_step, 0).SetCode(absl::StatusCode::kInvalidArgument)
+      << "New step cannot be negative.";
+  if (new_step == current_external_step) {
+    return absl::OkStatus();
+  }
+  RET_CHECK_LE(new_step, current_external_step)
+          .SetCode(absl::StatusCode::kInvalidArgument)
+      << "New step cannot be greater than the current step: "
+      << current_external_step;
+  if (new_step < 0) {
+    // Current step is negative after rolling back. This can only happen when
+    // the user wants to set the step to 0 while there is a pending input token.
+    // Thus we can roll back executor state to step 0.
+    return Reset();
+  }
+  llm_context_->runtime_state().current_step = new_step;
+
+  return absl::OkStatus();
+}
+
 absl::Status LlmLiteRtCompiledModelExecutorBase::Reset() {
-  current_step_ = 0;
+  llm_context_->runtime_state().current_step = 0;
   return absl::OkStatus();
 }
 
@@ -1164,6 +1258,11 @@ absl::StatusOr<int> LlmLiteRtCompiledModelExecutorBase::GetVocabSize() {
 absl::Status LlmLiteRtCompiledModelExecutorStatic::Prefill(
     const ExecutorInputs& inputs, const ExecutorPrefillParams& params) {
 
+  int output_heads = 1;
+  if (llm_context_->runtime_config().output_heads.has_value()) {
+    output_heads = llm_context_->runtime_config().output_heads.value();
+  }
+
   // For now, we reduce the input and processed tokens for prefill only with
   // the first input and processed tokens. This should be updated if user select
   // the decode output candidate.
@@ -1172,11 +1271,11 @@ absl::Status LlmLiteRtCompiledModelExecutorStatic::Prefill(
 
   LITERT_ASSIGN_OR_RETURN(auto tensor_type,
                           (*inputs.GetTextTokenIdsPtr())->TensorType());
-  // Accept batch size 1 or output_batch_size_ though prefill handles only the
+  // Accept batch size 1 or output_heads though prefill handles only the
   // first batch element.
   int32_t input_batch_size = tensor_type.Layout().Dimensions()[0];
   if (input_batch_size != 1) {
-    RET_CHECK_EQ(input_batch_size, output_batch_size_);
+    RET_CHECK_EQ(input_batch_size, output_heads);
   }
   RET_CHECK_GT(tensor_type.Layout().Dimensions()[1], 0)
       << "Prefill token ids must be non-empty.";
@@ -1606,14 +1705,18 @@ absl::Status LlmLiteRtCompiledModelExecutorDynamic::PrefillInternal(
   // Check if have a pending input token. Note that 'internal_start_step' is
   // always equal to the number of processed tokens plus 1.
   ProcessedTokens::StepAndToken step_and_token =
-      processed_tokens_.GetNextUnprocessedToken();
+      llm_context_->processed_context()
+          .processed_tokens()
+          .GetNextUnprocessedToken();
   bool has_pending_input_token = !step_and_token.token.empty();
   int prefill_length = has_pending_input_token ? ids.size() : ids.size() - 1;
   // If there is no pending input token and no input token to prefill, we can
   // return early by storing the token as a pending input token.
   if (!has_pending_input_token && prefill_length == 0) {
-    RETURN_IF_ERROR(processed_tokens_.AddPendingInputToken(
-        {std::make_shared<TokenData>(ids[0])}));
+    RETURN_IF_ERROR(
+        llm_context_->processed_context()
+            .processed_tokens()
+            .AddPendingInputToken({std::make_shared<TokenData>(ids[0])}));
     return absl::OkStatus();
   }
 
@@ -1709,7 +1812,7 @@ absl::Status LlmLiteRtCompiledModelExecutorDynamic::DecodeInternal(
         key_buffer_tensor_type.Layout().Dimensions()[key_dynamic_dim_index_];
   }
 
-  if (current_kv_len <= current_step_ - 1) {
+  if (current_kv_len <= llm_context_->runtime_state().current_step - 1) {
     int entries_to_add = kv_increament_size_;
     int new_kv_len = current_kv_len + entries_to_add;
     for (const auto& k_cache_input_name : key_cache_input_names_) {

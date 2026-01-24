@@ -299,8 +299,7 @@ TEST_P(ConversationTest, SendMessage) {
   JsonMessage expected_message = {
       {"role", "assistant"},
       {"content",
-       {{{"type", "text"},
-         {"text", "TarefaByte دارایेत्र investigaciónప్రదేశসাইন"}}}}};
+       {{{"type", "text"}, {"text", "TarefaByte دارایेत्र investigaciónప్రదేశ"}}}}};
   const JsonMessage& json_message = std::get<JsonMessage>(message);
   EXPECT_EQ(json_message, expected_message);
   EXPECT_THAT(conversation->GetHistory(),
@@ -590,7 +589,7 @@ TEST_P(ConversationTest, SendMessageAsync) {
       JsonMessage({{"role", "assistant"},
                    {"content",
                     {{{"type", "text"},
-                      {"text", "TarefaByte دارایेत्र investigaciónప్రదేశসাইন"}}}}});
+                      {"text", "TarefaByte دارایेत्र investigaciónప్రదేశ"}}}}});
   Message expected_message_for_confirm = expected_message;
 
   absl::Notification done;
@@ -958,17 +957,16 @@ TEST_P(ConversationTest, SendMessageWithPreface) {
   // random weights.
   JsonMessage expected_message;
   if (prefill_preface_on_init_) {
-    expected_message = {
-        {"role", "assistant"},
-        {"content",
-         {{{"type", "text"},
-           {"text", " rupani rupani rupani echoes echoesinicio"}}}}};
+    expected_message = {{"role", "assistant"},
+                        {"content",
+                         {{{"type", "text"},
+                           {"text", " rupani rupani rupani echoes echoes"}}}}};
   } else {
     expected_message = {
         {"role", "assistant"},
         {"content",
          {{{"type", "text"},
-           {"text", " noses</caption> গ্রাহ<unused5296> ompWr"}}}}};
+           {"text", " noses</caption> গ্রাহ<unused5296> omp"}}}}};
   }
   const JsonMessage& json_message = std::get<JsonMessage>(message);
   EXPECT_EQ(json_message, expected_message);
@@ -1061,7 +1059,7 @@ TEST(ConversationAccessHistoryTest, AccessHistory) {
       JsonMessage({{"role", "assistant"},
                    {"content",
                     {{{"type", "text"},
-                      {"text", "TarefaByte دارایेत्र investigaciónప్రదేశসাইন"}}}}});
+                      {"text", "TarefaByte دارایेत्र investigaciónప్రదేశ"}}}}});
   Message expected_assistant_message_for_confirm = expected_assistant_message;
   absl::Notification done;
   EXPECT_OK(conversation->SendMessageAsync(

@@ -419,6 +419,8 @@ absl::StatusOr<Responses> Decode(
         ExecutorInputs inputs;
         inputs.SetTextData(ExecutorTextData(std::move(duplicated_decoded_ids)));
         std::optional<BenchmarkInfo> unused_benchmark_info;
+        ASSIGN_OR_RETURN(auto current_step, executor.GetCurrentStep());
+        RETURN_IF_ERROR(executor.SetCurrentStep(current_step - 1));
         auto status = Prefill(executor, inputs, /*wait_for_completion=*/true,
                               unused_benchmark_info);
         if (!status.ok()) {
@@ -497,6 +499,8 @@ absl::StatusOr<Responses> Decode(
     ExecutorInputs inputs;
     inputs.SetTextData(ExecutorTextData(std::move(duplicated_decoded_ids)));
     std::optional<BenchmarkInfo> unused_benchmark_info;
+    ASSIGN_OR_RETURN(auto current_step, executor.GetCurrentStep());
+    RETURN_IF_ERROR(executor.SetCurrentStep(current_step - 1));
     auto status = Prefill(executor, inputs, /*wait_for_completion=*/true,
                           unused_benchmark_info);
     if (!status.ok()) {

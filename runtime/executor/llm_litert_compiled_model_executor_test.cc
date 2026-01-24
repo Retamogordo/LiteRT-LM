@@ -319,7 +319,7 @@ TEST(LlmLiteRtCompiledModelExecutorStaticTest, DecodeLogitsTest) {
     ASSERT_OK_AND_ASSIGN(auto output_logits, executor->DecodeLogits(inputs));
 
     ASSERT_OK_AND_ASSIGN(auto current_step, executor->GetCurrentStep());
-    EXPECT_EQ(current_step, 1);
+    EXPECT_EQ(current_step, 2);
 
     auto output_logits_span = ReferTensorBufferAsSpan<float>(output_logits);
     EXPECT_TRUE(output_logits_span.HasValue());
@@ -599,7 +599,7 @@ TEST(LlmLiteRtCompiledModelExecutorStaticTest,
   step = (*executor)->GetCurrentStep();
   EXPECT_OK(step);
   // First pending tokens were processed.
-  EXPECT_EQ(*step, 5 + kDecodeSteps - 1);
+  EXPECT_EQ(*step, 5 + kDecodeSteps);
   step_and_token =
       (*executor)->processed_tokens_for_testing().GetNextUnprocessedToken();
   EXPECT_EQ(step_and_token.step, 4 + kDecodeSteps);
@@ -614,7 +614,7 @@ TEST(LlmLiteRtCompiledModelExecutorStaticTest,
   EXPECT_OK((*executor)->Prefill(inputs_next));
   step = (*executor)->GetCurrentStep();
   EXPECT_OK(step);
-  EXPECT_EQ(*step, 5 + kDecodeSteps);
+  EXPECT_EQ(*step, 5 + kDecodeSteps + 1);
   step_and_token =
       (*executor)->processed_tokens_for_testing().GetNextUnprocessedToken();
   EXPECT_EQ(step_and_token.step, 4 + kDecodeSteps);
@@ -688,7 +688,7 @@ TEST(LlmLiteRtCompiledModelExecutorStaticTest,
   step = (*executor)->GetCurrentStep();
   EXPECT_OK(step);
   // First pending tokens were ignored.
-  EXPECT_EQ(*step, 5 + kDecodeSteps - 1);
+  EXPECT_EQ(*step, 5 + kDecodeSteps);
   step_and_token =
       (*executor)->processed_tokens_for_testing().GetNextUnprocessedToken();
   EXPECT_EQ(step_and_token.step, 4 + kDecodeSteps);
@@ -703,7 +703,7 @@ TEST(LlmLiteRtCompiledModelExecutorStaticTest,
   EXPECT_OK((*executor)->Prefill(inputs_next));
   step = (*executor)->GetCurrentStep();
   EXPECT_OK(step);
-  EXPECT_EQ(*step, 5 + kDecodeSteps);
+  EXPECT_EQ(*step, 5 + kDecodeSteps + 1);
   step_and_token =
       (*executor)->processed_tokens_for_testing().GetNextUnprocessedToken();
   EXPECT_EQ(step_and_token.step, 4 + kDecodeSteps);

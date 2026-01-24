@@ -42,6 +42,7 @@
 #include "runtime/executor/llm_executor_io_types.h"
 #include "runtime/executor/llm_executor_processed_tokens.h"
 #include "runtime/executor/llm_executor_settings.h"
+#include "runtime/executor/llm_processed_context.h"
 
 namespace litert::lm {
 
@@ -97,8 +98,11 @@ class LlmLiteRtCompiledModelExecutorBase : public LlmExecutor {
   // users prefill 100 tokens, then they expect the current step to be 100). It
   // is different from the internal current step.
   absl::StatusOr<int> GetCurrentStep() const override {
-    return processed_tokens_.TokenCount();
+    return llm_context_->runtime_state().current_step;
   }
+
+  // Sets the current step of the executor.
+  absl::Status SetCurrentStep(int new_step) override;
 
   // Resets all of the internal states.
   absl::Status Reset() override;
@@ -111,7 +115,7 @@ class LlmLiteRtCompiledModelExecutorBase : public LlmExecutor {
   using LogitsDataType = ActivationDataType;
 
   const ProcessedTokens& processed_tokens_for_testing() const {
-    return processed_tokens_;
+    return llm_context_->processed_context().processed_tokens();
   }
 
  protected:
@@ -151,12 +155,22 @@ class LlmLiteRtCompiledModelExecutorBase : public LlmExecutor {
         decode_kv_cache_buffers_1_(std::move(decode_input_kv_cache_buffers)),
         decode_kv_cache_buffers_2_(std::move(decode_output_kv_cache_buffers)),
         signatures_(signatures),
-        output_batch_size_(output_batch_size),
         weight_cache_path_(std::move(weight_cache_path)),
         embedding_lookup_(std::move(embedding_lookup)),
         per_layer_embedding_lookup_(std::move(per_layer_embedding_lookup)),
         use_fp16_precision_(use_fp16_precision),
-        logits_data_type_(logits_data_type) {}
+        logits_data_type_(logits_data_type) {
+    auto processed_context = std::make_unique<LlmProcessedContext>(
+        std::nullopt,
+        absl::flat_hash_map<absl::string_view, ::litert::TensorBuffer>(),
+        ProcessedTokens());
+    auto runtime_config = std::make_unique<RuntimeConfig>();
+    runtime_config->output_heads = output_batch_size;
+    auto runtime_state = std::make_unique<RuntimeState>();
+    llm_context_ = std::make_unique<LlmContext>(std::move(processed_context),
+                                                std::move(runtime_config),
+                                                std::move(runtime_state));
+  }
 
  protected:
   // Rolls back the processed tokens to the current step.
@@ -260,8 +274,12 @@ class LlmLiteRtCompiledModelExecutorBase : public LlmExecutor {
   // The signatures of the model.
   ModelSignatures signatures_;
 
-  // Output batch size for the sampled ids.
-  const int output_batch_size_;
+  // The context of the executor, which contains
+  // 1. The configuration settings.
+  // 2. The internal states.
+  // 3. The processed tokens.(e.g. KVCache)
+  std::unique_ptr<LlmContext> llm_context_;
+
   // Whether decode has been run ever after prefill.
   // TODO: b/409401231 - Make sure this state is session dependent.
   bool ran_decode_ = false;
@@ -273,13 +291,6 @@ class LlmLiteRtCompiledModelExecutorBase : public LlmExecutor {
   // Extra input tensors to swap for decode when sampler handles input tensors.
   ::litert::TensorBuffer decode_prev_input_pos_;
   ::litert::TensorBuffer decode_prev_mask_;
-
-  // Internal timestep.
-  int current_step_ = 0;
-
-  // Keeps track of processed tokens during the LLM execution. This also keeps
-  // track of the pending input token, if any.
-  ProcessedTokens processed_tokens_;
 
   // The path to the weight cache directory. Executor will take the ownership of
   // this path to maintain the path lifecycle.
