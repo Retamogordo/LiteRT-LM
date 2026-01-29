@@ -57,6 +57,7 @@ class EngineFactory {
 
   // The type of engine to create.
   enum class EngineType {
+    kAdvancedLiteRTCompiledModel,
     kLiteRTCompiledModel,
   };
 

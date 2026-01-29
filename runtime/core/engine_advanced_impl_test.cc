@@ -53,10 +53,7 @@ absl::StatusOr<std::unique_ptr<Engine>> CreateEngine(
   ASSIGN_OR_RETURN(std::vector<EngineFactory::EngineType> engine_types,
                    EngineFactory::Instance().ListEngineTypes());
   RET_CHECK_EQ(engine_types.size(), 1);
-  RET_CHECK(engine_types[0] ==
-            EngineFactory::EngineType::kAdvancedLegacyTfLite);
-  return EngineFactory::Create(EngineFactory::EngineType::kAdvancedLegacyTfLite,
-                               std::move(engine_settings));
+  return EngineFactory::CreateAny(std::move(engine_settings));
 }
 
 TEST(EngineTest, CreateEngine_WithoutCache) {
