@@ -522,11 +522,12 @@ LlmLiteRtNpuCompiledModelExecutor::CreateMaskContextWithBufferSharing(
       MaskSignatures::kMaskOutputLocalMask,
       MaskSignatures::kMaskOutputGlobalMask};
   for (const auto& mask_output_name : mask_output_names) {
-    if (gemma_prefill_input_buffers.contains(mask_output_name)) {
-      LITERT_ASSIGN_OR_RETURN(
-          prefill_output_buffers[mask_output_name],
-          gemma_prefill_input_buffers[mask_output_name].Duplicate());
-    }
+    LITERT_RETURN_IF_ERROR(
+        gemma_prefill_input_buffers.contains(mask_output_name))
+        << "Missing mask output buffer: " << mask_output_name;
+    LITERT_ASSIGN_OR_RETURN(
+        prefill_output_buffers[mask_output_name],
+        gemma_prefill_input_buffers[mask_output_name].Duplicate());
   }
 
   LITERT_ASSIGN_OR_RETURN(
@@ -541,11 +542,12 @@ LlmLiteRtNpuCompiledModelExecutor::CreateMaskContextWithBufferSharing(
   decode_input_buffers[MaskSignatures::kMaskInputTokens].Clear();
 
   for (const auto& mask_output_name : mask_output_names) {
-    if (gemma_decode_input_buffers.contains(mask_output_name)) {
-      LITERT_ASSIGN_OR_RETURN(
-          decode_output_buffers[mask_output_name],
-          gemma_decode_input_buffers[mask_output_name].Duplicate());
-    }
+    LITERT_RETURN_IF_ERROR(
+        gemma_decode_input_buffers.contains(mask_output_name))
+        << "Missing mask output buffer: " << mask_output_name;
+    LITERT_ASSIGN_OR_RETURN(
+        decode_output_buffers[mask_output_name],
+        gemma_decode_input_buffers[mask_output_name].Duplicate());
   }
 
   InferenceContext mask_context(
@@ -582,11 +584,12 @@ LlmLiteRtNpuCompiledModelExecutor::CreateRopeContextWithBufferSharing(
       RopeSignatures::kOutputPosEmbeddingLocalHigh,
       RopeSignatures::kOutputPosEmbeddingLow};
   for (const auto& rope_output_name : rope_output_names) {
-    if (gemma_prefill_input_buffers.contains(rope_output_name)) {
-      LITERT_ASSIGN_OR_RETURN(
-          prefill_output_buffers[rope_output_name],
-          gemma_prefill_input_buffers[rope_output_name].Duplicate());
-    }
+    LITERT_RETURN_IF_ERROR(
+        gemma_prefill_input_buffers.contains(rope_output_name))
+        << "Missing rope output buffer: " << rope_output_name;
+    LITERT_ASSIGN_OR_RETURN(
+        prefill_output_buffers[rope_output_name],
+        gemma_prefill_input_buffers[rope_output_name].Duplicate());
   }
 
   LITERT_ASSIGN_OR_RETURN(
@@ -596,11 +599,12 @@ LlmLiteRtNpuCompiledModelExecutor::CreateRopeContextWithBufferSharing(
   decode_input_buffers[RopeSignatures::kInputPos].Clear();
 
   for (const auto& rope_output_name : rope_output_names) {
-    if (gemma_decode_input_buffers.contains(rope_output_name)) {
-      LITERT_ASSIGN_OR_RETURN(
-          decode_output_buffers[rope_output_name],
-          gemma_decode_input_buffers[rope_output_name].Duplicate());
-    }
+    LITERT_RETURN_IF_ERROR(
+        gemma_decode_input_buffers.contains(rope_output_name))
+        << "Missing rope output buffer: " << rope_output_name;
+    LITERT_ASSIGN_OR_RETURN(
+        decode_output_buffers[rope_output_name],
+        gemma_decode_input_buffers[rope_output_name].Duplicate());
   }
 
   InferenceContext rope_context(
