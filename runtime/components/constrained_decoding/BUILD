@@ -79,6 +79,10 @@ cc_library(
     name = "constrained_decoder",
     srcs = ["constrained_decoder.cc"],
     hdrs = ["constrained_decoder.h"],
+    visibility = [
+        "//third_party/odml/infra/genai/inference/executor:__pkg__",
+        "//:__subpackages__",
+    ],
     deps = [
         ":constraint",
         "@com_google_absl//absl/status",
