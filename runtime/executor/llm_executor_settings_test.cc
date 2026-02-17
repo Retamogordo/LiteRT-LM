@@ -183,6 +183,7 @@ GpuArtisanConfig CreateGpuArtisanConfig() {
   config.supported_lora_ranks = {4, 16};
   config.max_top_k = 40;
   config.enable_decode_logits = true;
+  config.use_submodel = true;
   return config;
 }
 
@@ -198,6 +199,7 @@ supported_lora_ranks: vector of 2 elements: [4, 16]
 max_top_k: 40
 enable_decode_logits: 1
 enable_external_embeddings: 0
+use_submodel: 1
 )";
   EXPECT_EQ(oss.str(), expected_output);
 }
@@ -226,6 +228,7 @@ supported_lora_ranks: vector of 2 elements: [4, 16]
 max_top_k: 40
 enable_decode_logits: 1
 enable_external_embeddings: 0
+use_submodel: 1
 
 max_tokens: 1024
 activation_data_type: FLOAT16
@@ -286,6 +289,7 @@ supported_lora_ranks: vector of 2 elements: [4, 16]
 max_top_k: 40
 enable_decode_logits: 1
 enable_external_embeddings: 0
+use_submodel: 1
 
 max_tokens: 1024
 activation_data_type: FLOAT16
@@ -465,6 +469,17 @@ TEST(LlmExecutorConfigTest, GetBackendConfig) {
   auto gpu_config = (*settings).GetBackendConfig<GpuArtisanConfig>();
   EXPECT_OK(gpu_config);
   EXPECT_EQ(gpu_config->num_output_candidates, 1);
+  EXPECT_TRUE(gpu_config->use_submodel);
+
+  // Test setting via MutableBackendConfig
+  ASSERT_OK_AND_ASSIGN(auto mutable_gpu_config,
+                       settings->MutableBackendConfig<GpuArtisanConfig>());
+  mutable_gpu_config.use_submodel = false;
+  settings->SetBackendConfig(mutable_gpu_config);
+  ASSERT_OK_AND_ASSIGN(auto updated_gpu_config,
+                       settings->GetBackendConfig<GpuArtisanConfig>());
+  EXPECT_FALSE(updated_gpu_config.use_submodel);
+
   EXPECT_THAT((*settings).GetBackendConfig<CpuConfig>(),
               StatusIs(kInvalidArgument));
 }

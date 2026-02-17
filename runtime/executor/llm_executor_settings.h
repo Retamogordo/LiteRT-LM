@@ -72,6 +72,9 @@ struct GpuArtisanConfig {
   // AiCore uses external embeddings, so this is enabled for AiCore.
   // LLM Engine defaults to disabling external embeddings.
   bool enable_external_embeddings = false;
+
+  // Whether the submodel should be used if available.
+  bool use_submodel = false;
 };
 
 std::ostream& operator<<(std::ostream& os, const GpuArtisanConfig& config);

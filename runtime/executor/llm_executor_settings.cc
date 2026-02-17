@@ -41,6 +41,7 @@ std::ostream& operator<<(std::ostream& os, const GpuArtisanConfig& config) {
   os << "enable_decode_logits: " << config.enable_decode_logits << "\n";
   os << "enable_external_embeddings: " << config.enable_external_embeddings
      << "\n";
+  os << "use_submodel: " << config.use_submodel << "\n";
   return os;
 }
 
