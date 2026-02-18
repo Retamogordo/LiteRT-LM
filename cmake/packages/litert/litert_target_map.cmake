@@ -25,6 +25,7 @@ set(LITERT_TARGET_MAP
     "litert::core_cache=${LITERT_BUILD_DIR}/core/cache/liblitert_core_cache.a"
     "litert::core_model=${LITERT_BUILD_DIR}/core/model/liblitert_core_model.a"
     "litert::qnn_manager=${LITERT_BUILD_DIR}/vendors/qualcomm/libqnn_manager.a"
+    "litert::qnn_saver_utils=${LITERT_BUILD_DIR}/vendors/qualcomm/libqnn_saver_utils.a"
     "litert::qnn_context_binary_info=${LITERT_BUILD_DIR}/vendors/qualcomm/libqnn_context_binary_info.a"
     "litert::qnn_backends=${LITERT_BUILD_DIR}/vendors/qualcomm/core/backends/libqnn_backends.a"
     "litert::qnn_dump=${LITERT_BUILD_DIR}/vendors/qualcomm/core/dump/libqnn_dump.a"

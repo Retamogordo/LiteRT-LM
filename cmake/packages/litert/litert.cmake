@@ -47,7 +47,7 @@ ExternalProject_Add(
   GIT_REPOSITORY
     https://github.com/google-ai-edge/LiteRT.git
   GIT_TAG
-    v2.1.2
+    b8bacdb29528b37b9ca7461205f6f0c18544f78d # validated on 2026-02-18
   GIT_SUBMODULES ""
   GIT_SUBMODULES_RECURSE FALSE
   PREFIX
