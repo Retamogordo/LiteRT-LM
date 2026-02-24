@@ -33,6 +33,7 @@
 #include "litert/cc/litert_tensor_buffer.h"  // from @litert
 #include "runtime/components/constrained_decoding/constraint.h"
 #include "runtime/proto/engine.pb.h"
+#include "runtime/util/status_macros.h"
 
 namespace litert::lm {
 
@@ -234,6 +235,18 @@ inline absl::StatusOr<InputData> CreateInputDataCopy(const InputData& data) {
   }
   return absl::FailedPreconditionError(
       "The InputData is not a InputText, InputImage, or InputAudio.");
+}
+
+// Creates a copy of the InputData vector.
+inline absl::StatusOr<std::vector<InputData>> CreateInputDataVectorCopy(
+    const std::vector<InputData>& data) {
+  std::vector<InputData> copy;
+  copy.reserve(data.size());
+  for (const auto& input_data : data) {
+    ASSIGN_OR_RETURN(auto input_data_copy, CreateInputDataCopy(input_data));
+    copy.push_back(std::move(input_data_copy));
+  }
+  return copy;
 }
 
 // The state of the task.

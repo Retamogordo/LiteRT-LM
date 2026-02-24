@@ -451,6 +451,36 @@ TEST(CreateInputDataCopyTest, InputAudioEnd) {
   ASSERT_TRUE(std::holds_alternative<InputAudioEnd>(copied_data));
 }
 
+TEST(CreateInputDataVectorCopyTest, CopyVector) {
+  std::vector<InputData> original_vector;
+  original_vector.push_back(InputText("Test Text"));
+  original_vector.push_back(InputImage("Test Image"));
+  original_vector.push_back(InputAudio("Test Audio"));
+  original_vector.push_back(InputAudioEnd());
+
+  ASSERT_OK_AND_ASSIGN(std::vector<InputData> copied_vector,
+                       CreateInputDataVectorCopy(original_vector));
+
+  ASSERT_EQ(copied_vector.size(), 4);
+  ASSERT_TRUE(std::holds_alternative<InputText>(copied_vector[0]));
+  EXPECT_THAT(std::get<InputText>(copied_vector[0]).GetRawTextString(),
+              IsOkAndHolds("Test Text"));
+  ASSERT_TRUE(std::holds_alternative<InputImage>(copied_vector[1]));
+  EXPECT_THAT(std::get<InputImage>(copied_vector[1]).GetRawImageBytes(),
+              IsOkAndHolds("Test Image"));
+  ASSERT_TRUE(std::holds_alternative<InputAudio>(copied_vector[2]));
+  EXPECT_THAT(std::get<InputAudio>(copied_vector[2]).GetRawAudioBytes(),
+              IsOkAndHolds("Test Audio"));
+  ASSERT_TRUE(std::holds_alternative<InputAudioEnd>(copied_vector[3]));
+}
+
+TEST(CreateInputDataVectorCopyTest, EmptyVector) {
+  std::vector<InputData> original_vector;
+  ASSERT_OK_AND_ASSIGN(std::vector<InputData> copied_vector,
+                       CreateInputDataVectorCopy(original_vector));
+  EXPECT_TRUE(copied_vector.empty());
+}
+
 TEST(ResponsesTest, GetTaskState) {
   {
     Responses responses(TaskState::kCreated, {});
