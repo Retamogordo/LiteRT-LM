@@ -1572,6 +1572,11 @@ LlmLiteRtCompiledModelExecutorStatic::Create(
         gpu_compilation_options.SetModelCacheKey("fd_token");
       }
 
+      AdvancedSettings advanced_settings;
+      if (executor_settings.GetAdvancedSettings()) {
+        advanced_settings = *executor_settings.GetAdvancedSettings();
+      }
+
       bool serialization_dir_set = false;
       if (cache_path != ":nocache") {
         if (cache_path.empty()) {
@@ -1588,6 +1593,8 @@ LlmLiteRtCompiledModelExecutorStatic::Create(
         gpu_compilation_options.SetSerializationDir(cache_path.c_str());
         serialization_dir_set = true;
         gpu_compilation_options.SetSerializeExternalTensors(true);
+        gpu_compilation_options.CacheCompiledProgramsOnly(
+            advanced_settings.cache_compiled_shaders_only);
       } else {
         gpu_compilation_options.SetSerializeExternalTensors(false);
       }
@@ -1638,10 +1645,6 @@ LlmLiteRtCompiledModelExecutorStatic::Create(
       // Prefill and decode are always fully delegated to single delegate.
       gpu_compilation_options.SetHintFullyDelegatedToSingleDelegate(true);
 
-      AdvancedSettings advanced_settings;
-      if (executor_settings.GetAdvancedSettings()) {
-        advanced_settings = *executor_settings.GetAdvancedSettings();
-      }
       gpu_compilation_options.SetMadviseOriginalSharedTensors(
           advanced_settings.gpu_madvise_original_shared_tensors);
       gpu_compilation_options.SetConvertWeightsOnGpu(
@@ -1654,6 +1657,9 @@ LlmLiteRtCompiledModelExecutorStatic::Create(
       if (advanced_settings.is_benchmark) {
         gpu_compilation_options.SetSyncExecutionModeWaitType(
             GpuOptions::SyncExecutionModeWaitType::kActive);
+        gpu_compilation_options.WaitForWeightsConversionComplete(
+            advanced_settings
+                .wait_for_weights_conversion_complete_in_benchmark);
       }
       if (!advanced_settings.preferred_device_substr.empty()) {
         gpu_compilation_options.SetPreferredDeviceSubstr(

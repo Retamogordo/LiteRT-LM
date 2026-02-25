@@ -141,12 +141,14 @@ absl::Status MainHelper(int argc, char** argv) {
            "[--num_threads_to_upload=<num_threads_to_upload>]"
            "[--num_threads_to_compile=<num_threads_to_compile>]"
            "[--convert_weights_on_gpu=<true|false>]"
+           "[--wait_for_weights_conversion_complete_in_benchmark=<true|false>]"
            "[--optimize_shader_compilation=<true|false>]"
            "[--share_constant_tensors=<true|false>]"
            "[--num_iterations=<num_iterations>]"
            "[--litert_dispatch_lib_dir=<litert_dispatch_lib_dir>]"
            "[--sampler_handles_input=<true|false>]"
            "[--disable_cache=<true|false>]"
+           "[--cache_compiled_shader_only=<true|false>]"
            "[--conv_type=<auto|float|int8>]";
     ABSL_LOG(INFO)
         << "To provide data for multimodality, use [image:/path/to/image.jpg] "
@@ -200,11 +202,15 @@ absl::Status MainHelper(int argc, char** argv) {
   settings.gpu_madvise_original_shared_tensors =
       absl::GetFlag(FLAGS_gpu_madvise_original_shared_tensors);
   settings.disable_cache = absl::GetFlag(FLAGS_disable_cache);
+  settings.cache_compiled_shaders_only =
+      absl::GetFlag(FLAGS_cache_compiled_shaders_only);
   settings.preferred_device_substr =
       absl::GetFlag(FLAGS_preferred_device_substr);
   settings.num_threads_to_upload = absl::GetFlag(FLAGS_num_threads_to_upload);
   settings.num_threads_to_compile = absl::GetFlag(FLAGS_num_threads_to_compile);
   settings.convert_weights_on_gpu = absl::GetFlag(FLAGS_convert_weights_on_gpu);
+  settings.wait_for_weights_conversion_complete_in_benchmark =
+      absl::GetFlag(FLAGS_wait_for_weights_conversion_complete_in_benchmark);
   settings.optimize_shader_compilation =
       absl::GetFlag(FLAGS_optimize_shader_compilation);
   settings.share_constant_tensors = absl::GetFlag(FLAGS_share_constant_tensors);

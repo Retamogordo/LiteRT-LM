@@ -219,7 +219,10 @@ absl::StatusOr<EngineSettings> CreateEngineSettings(
       .num_threads_to_upload = settings.num_threads_to_upload,
       .num_threads_to_compile = settings.num_threads_to_compile,
       .convert_weights_on_gpu = settings.convert_weights_on_gpu,
+      .wait_for_weights_conversion_complete_in_benchmark =
+          settings.wait_for_weights_conversion_complete_in_benchmark,
       .optimize_shader_compilation = settings.optimize_shader_compilation,
+      .cache_compiled_shaders_only = settings.cache_compiled_shaders_only,
       .share_constant_tensors = settings.share_constant_tensors,
       .sampler_handles_input = settings.sampler_handles_input,
   };

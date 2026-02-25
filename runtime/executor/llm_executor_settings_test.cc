@@ -270,7 +270,9 @@ TEST(LlmExecutorConfigTest, LlmExecutorSettingsWithAdvancedSettings) {
       .num_threads_to_upload = 4,
       .num_threads_to_compile = 2,
       .convert_weights_on_gpu = true,
+      .wait_for_weights_conversion_complete_in_benchmark = false,
       .optimize_shader_compilation = false,
+      .cache_compiled_shaders_only = true,
       .share_constant_tensors = false,
       .sampler_handles_input = false,
       .allow_src_quantized_fc_conv_ops = true,
@@ -315,7 +317,9 @@ preferred_device_substr: nvidia
 num_threads_to_upload: 4
 num_threads_to_compile: 2
 convert_weights_on_gpu: 1
+wait_for_weights_conversion_complete_in_benchmark: 0
 optimize_shader_compilation: 0
+cache_compiled_shaders_only: 1
 share_constant_tensors: 0
 sampler_handles_input: 0
 allow_src_quantized_fc_conv_ops: 1

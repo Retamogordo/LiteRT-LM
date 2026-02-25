@@ -100,6 +100,7 @@ struct LiteRtLmSettings {
   int num_threads_to_upload = -1;
   int num_threads_to_compile = -1;
   bool convert_weights_on_gpu = true;
+  bool wait_for_weights_conversion_complete_in_benchmark = true;
   bool optimize_shader_compilation = true;
   bool share_constant_tensors = true;
   // If true, use Session instead of Conversation to run the inference.
@@ -109,6 +110,7 @@ struct LiteRtLmSettings {
   std::string litert_dispatch_lib_dir = "";
   bool sampler_handles_input = true;
   ConvType conv_type = ConvType::kAuto;
+  bool cache_compiled_shaders_only = false;
   std::string constraint_regex = "";
 };
 

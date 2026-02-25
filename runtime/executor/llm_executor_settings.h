@@ -178,12 +178,22 @@ struct AdvancedSettings {
   // non-OpenCL and non-WebGPU backends.
   bool convert_weights_on_gpu = true;
 
+  // If false, the executor does not wait for weights conversion on GPU to
+  // complete during benchmark. It's meaningful only when both is_benchmark and
+  // convert_weights_on_gpu are true.
+  bool wait_for_weights_conversion_complete_in_benchmark = true;
+
   // If true (by default), the executor enables Vulkan kernel shader
   // optimization.
   // Some GPU backends like Vulkan don't get much performance benefit from the
   // shader optimization but just increase initialization time with longer
   // shader compilation time.
   bool optimize_shader_compilation = true;
+
+  // If true, the executor only cache the compiled shaders. If false, gpu graph
+  // info including work group sizes (and compiled shaders depending on backend,
+  // e.g. OpenCL includes compiled shaders, but WebGPU doesn't) will be cached.
+  bool cache_compiled_shaders_only = false;
 
   // If true (by default), the executor enables constant tensor sharing.
   // Some GPU backends like Vulkan may degrade the performance when constant
@@ -215,7 +225,10 @@ struct AdvancedSettings {
            num_threads_to_upload == other.num_threads_to_upload &&
            num_threads_to_compile == other.num_threads_to_compile &&
            convert_weights_on_gpu == other.convert_weights_on_gpu &&
+           wait_for_weights_conversion_complete_in_benchmark ==
+               other.wait_for_weights_conversion_complete_in_benchmark &&
            optimize_shader_compilation == other.optimize_shader_compilation &&
+           cache_compiled_shaders_only == other.cache_compiled_shaders_only &&
            share_constant_tensors == other.share_constant_tensors &&
            sampler_handles_input == other.sampler_handles_input &&
            allow_src_quantized_fc_conv_ops ==

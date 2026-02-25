@@ -74,8 +74,12 @@ std::ostream& operator<<(std::ostream& os, const AdvancedSettings& settings) {
   os << "num_threads_to_upload: " << settings.num_threads_to_upload << "\n";
   os << "num_threads_to_compile: " << settings.num_threads_to_compile << "\n";
   os << "convert_weights_on_gpu: " << settings.convert_weights_on_gpu << "\n";
+  os << "wait_for_weights_conversion_complete_in_benchmark: "
+     << settings.wait_for_weights_conversion_complete_in_benchmark << "\n";
   os << "optimize_shader_compilation: "
      << settings.optimize_shader_compilation << "\n";
+  os << "cache_compiled_shaders_only: " << settings.cache_compiled_shaders_only
+     << "\n";
   os << "share_constant_tensors: " << settings.share_constant_tensors << "\n";
   os << "sampler_handles_input: " << settings.sampler_handles_input << "\n";
   if (settings.allow_src_quantized_fc_conv_ops.has_value()) {
