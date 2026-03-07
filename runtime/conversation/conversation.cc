@@ -144,7 +144,8 @@ Conversation::GetSingleTurnTextFromSingleTurnTemplate(
           config_.prefill_preface_on_init() ? JsonPreface() : preface_, message,
           prompt_template_,
           /*current_is_appending_message=*/is_appending_message_,
-          /*append_message=*/optional_args.has_pending_message));
+          /*append_message=*/optional_args.has_pending_message,
+          optional_args.extra_context));
   is_appending_message_ = result.is_appending_message;
   return result.text;
 }
@@ -154,6 +155,12 @@ absl::StatusOr<std::string> Conversation::GetSingleTurnTextFromFullHistory(
   PromptTemplateInput old_tmpl_input;
   RETURN_IF_ERROR(FillPrefaceForPromptTemplateInput(
       preface_, model_data_processor_.get(), old_tmpl_input));
+
+  // Merge extra context for the message into the extra context provided in the
+  // preface. Existing keys will be overwritten.
+  if (optional_args.extra_context.has_value()) {
+    old_tmpl_input.extra_context = optional_args.extra_context.value();
+  }
 
   absl::MutexLock lock(history_mutex_);  // NOLINT
   for (const auto& history_msg : history_) {
@@ -296,7 +303,8 @@ absl::StatusOr<std::unique_ptr<Conversation>> Conversation::Create(
             tmp_history, config.GetPreface(), JsonMessage(),
             config.GetPromptTemplate(),
             /*current_is_appending_message=*/false,
-            /*append_message=*/false);
+            /*append_message=*/false,
+            /*extra_context=*/std::nullopt);
     if (fallback || absl::IsUnimplemented(render_result.status())) {
       // Fallback to the old way of prefilling the preface.
       PromptTemplateInput tmpl_input;

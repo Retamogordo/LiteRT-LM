@@ -114,7 +114,8 @@ class Gemma3DataProcessor
   absl::StatusOr<SingleTurnTemplateRenderResult> RenderSingleTurnTemplate(
       std::vector<Message>& history, const Preface& preface,
       const Message& message, const PromptTemplate& prompt_template,
-      bool current_is_appending_message, bool append_message) const override;
+      bool current_is_appending_message, bool append_message,
+      std::optional<nlohmann::ordered_json> extra_context) const override;
 
   absl::Status CloneStateImpl(
       const TypeSafeModelDataProcessor<Gemma3DataProcessorConfig,

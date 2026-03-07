@@ -28,6 +28,7 @@
 #include "absl/status/statusor.h"  // from @com_google_absl
 #include "absl/strings/string_view.h"  // from @com_google_absl
 #include "absl/synchronization/mutex.h"  // from @com_google_absl
+#include "nlohmann/json_fwd.hpp"  // from @nlohmann_json
 #include "runtime/components/constrained_decoding/constraint.h"
 #include "runtime/components/constrained_decoding/constraint_provider.h"
 #include "runtime/components/constrained_decoding/constraint_provider_config.h"
@@ -300,6 +301,11 @@ struct OptionalArgs {
   // controller will be stored and can be cancelled by calling
   // `Conversation::CancelGroup(task_group_id)`.
   std::optional<std::string> task_group_id = std::nullopt;
+
+  // The extra template context passed into PromptTemplateInput. This extra
+  // context only applies to a single message and is merged with the extra
+  // context provided in the Preface, overwriting existing keys.
+  std::optional<nlohmann::ordered_json> extra_context = std::nullopt;
 };
 
 // A multi-turn centric stateful Conversation API for high-level user

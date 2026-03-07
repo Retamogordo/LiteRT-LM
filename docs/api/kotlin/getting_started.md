@@ -166,15 +166,15 @@ engine.createConversation(conversationConfig).use { conversation ->
 
 There are three ways to send messages:
 
--   **`sendMessage(contents): Message`**: Synchronous call that blocks until the
-    model returns a complete response. This is simpler for basic
-    request/response interactions.
--   **`sendMessageAsync(contents, callback)`**: Asynchronous call for streaming
-    responses. This is better for long-running requests or when you want to
-    display the response as it's being generated.
--   **`sendMessageAsync(contents): Flow<Message>`**: Asynchronous call that
-    returns a Kotlin Flow for streaming responses. This is the recommended
-    approach for Coroutine users.
+-   **`sendMessage(contents, extraContext): Message`**: Synchronous call that
+    blocks until the model returns a complete response. This is simpler for
+    basic request/response interactions.
+-   **`sendMessageAsync(contents, callback, extraContext)`**: Asynchronous call
+    for streaming responses. This is better for long-running requests or when
+    you want to display the response as it's being generated.
+-   **`sendMessageAsync(contents, extraContext): Flow<Message>`**: Asynchronous
+    call that returns a Kotlin Flow for streaming responses. This is the
+    recommended approach for Coroutine users.
 
 **Synchronous Example:**
 
@@ -455,6 +455,33 @@ To try out tool use, clone the repo and run with
 ```bazel
 bazel run -c opt //kotlin/java/com/google/ai/edge/litertlm/example:tool -- <abs_model_path>
 ```
+
+### 7. Extra Template Context Variables
+
+You can pass extra context variables to the prompt template for rendering.
+This allows you to customize the model's behavior based on dynamic values.
+
+`extraContext` is an optional `Map<String, Any>` that can be passed to
+`sendMessage` and `sendMessageAsync`. These variables are merged with the extra
+context provided in the `Preface` (if any), with keys in the message-level
+context overwriting those in the `Preface`.
+
+```kotlin
+val extraContext = mapOf(
+    "user_name" to "Alice",
+    "enable_thinking" to true
+)
+
+// Synchronous
+val response = conversation.sendMessage("Hello!", extraContext = extraContext)
+
+// Asynchronous with Flow
+conversation.sendMessageAsync("Hello!", extraContext = extraContext)
+    .collect { ... }
+```
+
+These variables are used within the Jinja-style prompt templates, e.g.,
+`{{ user_name }}` or `{% if enable_thinking %}`.
 
 ## Error Handling
 

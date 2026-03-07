@@ -86,18 +86,21 @@ class Conversation(
    * [RECURRING_TOOL_CALL_LIMIT] times.
    *
    * @param message The message to send to the model.
+   * @param extraContext Optional context used for prompt template rendering.
    * @return The model's response message.
    * @throws IllegalStateException if the conversation is not alive, if the native layer returns an
    *   invalid response, or if the tool call limit is exceeded.
    * @throws LiteRtLmJniException if an error occurs during the native call.
    */
-  fun sendMessage(message: Message): Message {
+  fun sendMessage(message: Message, extraContext: Map<String, Any> = emptyMap()): Message {
     checkIsAlive()
 
     var currentMessageJson = message.toJson()
+    var extraContextJsonString = extraContext.toJsonObject().toString()
 
     for (i in 0..<RECURRING_TOOL_CALL_LIMIT) {
-      val responseJsonString = LiteRtLmJni.nativeSendMessage(handle, currentMessageJson.toString())
+      val responseJsonString =
+        LiteRtLmJni.nativeSendMessage(handle, currentMessageJson.toString(), extraContextJsonString)
       val responseJsonObject = JsonParser.parseString(responseJsonString).asJsonObject
 
       if (responseJsonObject.has("tool_calls")) {
@@ -124,13 +127,14 @@ class Conversation(
    * [RECURRING_TOOL_CALL_LIMIT] times.
    *
    * @param contents The list of contents to send to the model.
+   * @param extraContext Optional context used for prompt template rendering.
    * @return The model's response message.
    * @throws IllegalStateException if the conversation is not alive, if the native layer returns an
    *   invalid response, or if the tool call limit is exceeded.
    * @throws LiteRtLmJniException if an error occurs during the native call.
    */
-  fun sendMessage(contents: Contents): Message {
-    return sendMessage(Message.user(contents))
+  fun sendMessage(contents: Contents, extraContext: Map<String, Any> = emptyMap()): Message {
+    return sendMessage(Message.user(contents), extraContext)
   }
 
   /**
@@ -142,12 +146,14 @@ class Conversation(
    * [RECURRING_TOOL_CALL_LIMIT] times.
    *
    * @param text The text to send to the model.
+   * @param extraContext Optional context used for prompt template rendering.
    * @return The model's response message.
    * @throws IllegalStateException if the conversation is not alive, if the native layer returns an
    *   invalid response, or if the tool call limit is exceeded.
    * @throws LiteRtLmJniException if an error occurs during the native call.
    */
-  fun sendMessage(text: String): Message = sendMessage(Contents.of(text))
+  fun sendMessage(text: String, extraContext: Map<String, Any> = emptyMap()): Message =
+    sendMessage(Contents.of(text), extraContext)
 
   /**
    * Send a message to the model and returns the response async with a callback.
@@ -159,14 +165,26 @@ class Conversation(
    *
    * @param message The message to send to the model.
    * @param callback The callback to receive the streaming responses.
+   * @param extraContext Optional context used for prompt template rendering.
    * @throws IllegalStateException if the conversation has already been closed or the content is
    *   empty.
    */
-  fun sendMessageAsync(message: Message, callback: MessageCallback) {
+  fun sendMessageAsync(
+    message: Message,
+    callback: MessageCallback,
+    extraContext: Map<String, Any> = emptyMap(),
+  ) {
     checkIsAlive()
 
+    val extraContextJsonString = extraContext.toJsonObject().toString()
+
     val jniCallback = JniMessageCallbackImpl(callback)
-    LiteRtLmJni.nativeSendMessageAsync(handle, message.toJson().toString(), jniCallback)
+    LiteRtLmJni.nativeSendMessageAsync(
+      handle,
+      message.toJson().toString(),
+      extraContextJsonString,
+      jniCallback,
+    )
   }
 
   /**
@@ -179,11 +197,15 @@ class Conversation(
    *
    * @param contents The list of contents to send to the model.
    * @param callback The callback to receive the streaming responses.
+   * @param extraContext Optional context used for prompt template rendering.
    * @throws IllegalStateException if the conversation has already been closed or the content is
    *   empty.
    */
-  fun sendMessageAsync(contents: Contents, callback: MessageCallback) =
-    sendMessageAsync(Message.user(contents), callback)
+  fun sendMessageAsync(
+    contents: Contents,
+    callback: MessageCallback,
+    extraContext: Map<String, Any> = emptyMap(),
+  ) = sendMessageAsync(Message.user(contents), callback, extraContext)
 
   /**
    * Send a text to the model and returns the response async with a callback.
@@ -195,11 +217,15 @@ class Conversation(
    *
    * @param text The text to send to the model.
    * @param callback The callback to receive the streaming responses.
+   * @param extraContext Optional context used for prompt template rendering.
    * @throws IllegalStateException if the conversation has already been closed or the content is
    *   empty.
    */
-  fun sendMessageAsync(text: String, callback: MessageCallback) =
-    sendMessageAsync(Contents.of(text), callback)
+  fun sendMessageAsync(
+    text: String,
+    callback: MessageCallback,
+    extraContext: Map<String, Any> = emptyMap(),
+  ) = sendMessageAsync(Contents.of(text), callback, extraContext)
 
   /**
    * Sends a message to the model and returns the response async as a [Flow].
@@ -210,11 +236,15 @@ class Conversation(
    * [RECURRING_TOOL_CALL_LIMIT] times.
    *
    * @param message The message to send to the model.
+   * @param extraContext Optional context used for prompt template rendering.
    * @return A Flow of messages representing the model's response.
    * @throws IllegalStateException if the conversation has already been closed or the content is
    *   empty.
    */
-  fun sendMessageAsync(message: Message): Flow<Message> = callbackFlow {
+  fun sendMessageAsync(
+    message: Message,
+    extraContext: Map<String, Any> = emptyMap(),
+  ): Flow<Message> = callbackFlow {
     sendMessageAsync(
       message,
       object : MessageCallback {
@@ -230,6 +260,7 @@ class Conversation(
           close(throwable)
         }
       },
+      extraContext,
     )
     awaitClose {}
   }
@@ -243,11 +274,15 @@ class Conversation(
    * [RECURRING_TOOL_CALL_LIMIT] times.
    *
    * @param contents The list of contents to send to the model.
+   * @param extraContext Optional context used for prompt template rendering.
    * @return A Flow of messages representing the model's response.
    * @throws IllegalStateException if the conversation has already been closed or the content is
    *   empty.
    */
-  fun sendMessageAsync(contents: Contents): Flow<Message> = sendMessageAsync(Message.user(contents))
+  fun sendMessageAsync(
+    contents: Contents,
+    extraContext: Map<String, Any> = emptyMap(),
+  ): Flow<Message> = sendMessageAsync(Message.user(contents), extraContext)
 
   /**
    * Sends a text to the model and returns the response async as a [Flow].
@@ -258,11 +293,13 @@ class Conversation(
    * [RECURRING_TOOL_CALL_LIMIT] times.
    *
    * @param text The text to send to the model.
+   * @param extraContext Optional context used for prompt template rendering.
    * @return A Flow of messages representing the model's response.
    * @throws IllegalStateException if the conversation has already been closed or the content is
    *   empty.
    */
-  fun sendMessageAsync(text: String): Flow<Message> = sendMessageAsync(Contents.of(text))
+  fun sendMessageAsync(text: String, extraContext: Map<String, Any> = emptyMap()): Flow<Message> =
+    sendMessageAsync(Contents.of(text), extraContext)
 
   private fun handleToolCalls(toolCallsJsonObject: JsonObject): JsonObject {
     val toolCallsJSONArray = toolCallsJsonObject.getAsJsonArray("tool_calls")
@@ -328,6 +365,7 @@ class Conversation(
         LiteRtLmJni.nativeSendMessageAsync(
           handle,
           localToolResponse.toString(),
+          "{}",
           this@JniMessageCallbackImpl,
         )
         pendingToolResponseJSONMessage = null // Clear after sending

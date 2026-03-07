@@ -25,6 +25,7 @@ cc_binary(
     linkshared = 1,
     deps = [
         "@com_google_absl//absl/base:log_severity",
+        "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/functional:any_invocable",
         "@com_google_absl//absl/log:absl_log",
         "@com_google_absl//absl/log:globals",

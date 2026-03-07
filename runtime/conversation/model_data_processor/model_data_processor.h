@@ -16,6 +16,7 @@
 #define THIRD_PARTY_ODML_LITERT_LM_RUNTIME_CONVERSATION_MODEL_DATA_PROCESSOR_MODEL_DATA_PROCESSOR_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
@@ -80,15 +81,17 @@ class ModelDataProcessor {
   //  - current_is_appending_message: Whether the current conversation is in
   //  appending state.
   //  - append_message: Whether the current message is for appending.
+  //  - extra_context: Optional context to merge into the PromptTemplateInput
+  //  for prompt template rendering.
   //
   // Returns the rendered text and the new is_appending_message as a
   // SingleTurnTemplateRenderResult.
   virtual absl::StatusOr<SingleTurnTemplateRenderResult>
-  RenderSingleTurnTemplate(std::vector<Message>& history,
-                           const Preface& preface, const Message& message,
-                           const PromptTemplate& prompt_template,
-                           bool current_is_appending_message,
-                           bool append_message) const {
+  RenderSingleTurnTemplate(
+      std::vector<Message>& history, const Preface& preface,
+      const Message& message, const PromptTemplate& prompt_template,
+      bool current_is_appending_message, bool append_message,
+      std::optional<nlohmann::ordered_json> extra_context) const {
     return absl::UnimplementedError(
         "RenderSingleTurnTemplate is not implemented.");
   }

@@ -295,6 +295,19 @@ SamplerParameters CreateSamplerParamsFromJni(JNIEnv* env,
 
   return sampler_params;
 }
+
+nlohmann::ordered_json GetExtraContextJson(JNIEnv* env,
+                                           jstring extra_context_json_string) {
+  const char* extra_context_chars =
+      env->GetStringUTFChars(extra_context_json_string, nullptr);
+  nlohmann::ordered_json extra_context_json;
+  if (extra_context_chars != nullptr) {
+    extra_context_json = nlohmann::ordered_json::parse(extra_context_chars);
+  }
+  env->ReleaseStringUTFChars(extra_context_json_string, extra_context_chars);
+  return extra_context_json;
+}
+
 }  // namespace
 
 extern "C" {
@@ -851,7 +864,8 @@ LITERTLM_JNIEXPORT void JNICALL JNI_METHOD(nativeDeleteConversation)(
 
 LITERTLM_JNIEXPORT void JNICALL JNI_METHOD(nativeSendMessageAsync)(
     JNIEnv* env, jclass thiz, jlong conversation_pointer,
-    jstring messageJSONString, jobject callback) {
+    jstring messageJSONString, jstring extraContextJsonString,
+    jobject callback) {
   JavaVM* jvm = nullptr;
   if (env->GetJavaVM(&jvm) != JNI_OK) {
     ThrowLiteRtLmJniException(env, "Failed to get JavaVM");
@@ -865,6 +879,13 @@ LITERTLM_JNIEXPORT void JNICALL JNI_METHOD(nativeSendMessageAsync)(
   litert::lm::JsonMessage json_message =
       nlohmann::ordered_json::parse(json_chars);
   env->ReleaseStringUTFChars(messageJSONString, json_chars);
+
+  litert::lm::OptionalArgs optional_args;
+  nlohmann::ordered_json extra_context =
+      GetExtraContextJson(env, extraContextJsonString);
+  if (!extra_context.is_null() && !extra_context.empty()) {
+    optional_args.extra_context = extra_context;
+  }
 
   jobject callback_global = env->NewGlobalRef(callback);
   jclass callback_class = env->GetObjectClass(callback_global);
@@ -932,8 +953,8 @@ LITERTLM_JNIEXPORT void JNICALL JNI_METHOD(nativeSendMessageAsync)(
         }
       };
 
-  auto status =
-      conversation->SendMessageAsync(json_message, std::move(callback_fn));
+  auto status = conversation->SendMessageAsync(
+      json_message, std::move(callback_fn), std::move(optional_args));
 
   if (!status.ok()) {
     ThrowLiteRtLmJniException(
@@ -943,7 +964,7 @@ LITERTLM_JNIEXPORT void JNICALL JNI_METHOD(nativeSendMessageAsync)(
 
 LITERTLM_JNIEXPORT jstring JNICALL JNI_METHOD(nativeSendMessage)(
     JNIEnv* env, jclass thiz, jlong conversation_pointer,
-    jstring messageJSONString) {
+    jstring messageJSONString, jstring extraContextJsonString) {
   Conversation* conversation =
       reinterpret_cast<Conversation*>(conversation_pointer);
 
@@ -952,7 +973,15 @@ LITERTLM_JNIEXPORT jstring JNICALL JNI_METHOD(nativeSendMessage)(
       nlohmann::ordered_json::parse(json_chars);
   env->ReleaseStringUTFChars(messageJSONString, json_chars);
 
-  auto response = conversation->SendMessage(json_message);
+  litert::lm::OptionalArgs optional_args;
+  nlohmann::ordered_json extra_context =
+      GetExtraContextJson(env, extraContextJsonString);
+  if (!extra_context.is_null() && !extra_context.empty()) {
+    optional_args.extra_context = extra_context;
+  }
+
+  auto response =
+      conversation->SendMessage(json_message, std::move(optional_args));
   if (!response.ok()) {
     ThrowLiteRtLmJniException(env, "Failed to call nativeSendMessage: " +
                                        response.status().ToString());

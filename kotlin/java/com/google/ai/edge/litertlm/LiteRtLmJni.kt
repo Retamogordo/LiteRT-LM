@@ -215,6 +215,7 @@ internal object LiteRtLmJni {
   external fun nativeSendMessageAsync(
     conversationPointer: Long,
     messageJsonString: String,
+    extraContextJsonString: String,
     callback: JniMessageCallback,
   )
 
@@ -225,7 +226,11 @@ internal object LiteRtLmJni {
    * @param messageJsonString The message to be processed by the native conversation instance.
    * @return The response message in JSON string format.
    */
-  external fun nativeSendMessage(conversationPointer: Long, messageJsonString: String): String
+  external fun nativeSendMessage(
+    conversationPointer: Long,
+    messageJsonString: String,
+    extraContextJsonString: String,
+  ): String
 
   /**
    * Cancels the ongoing conversation process.

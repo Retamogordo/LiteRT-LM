@@ -346,7 +346,8 @@ absl::StatusOr<ModelDataProcessor::SingleTurnTemplateRenderResult>
 Gemma3DataProcessor::RenderSingleTurnTemplate(
     std::vector<Message>& history, const Preface& preface,
     const Message& message, const PromptTemplate& prompt_template,
-    bool current_is_appending_message, bool append_message) const {
+    bool current_is_appending_message, bool append_message,
+    std::optional<nlohmann::ordered_json> extra_context) const {
   const JsonMessage& json_message = std::get<nlohmann::ordered_json>(message);
   const auto& json_preface = std::get<JsonPreface>(preface);
   std::string prefill_text = "";
@@ -403,6 +404,13 @@ Gemma3DataProcessor::RenderSingleTurnTemplate(
       preface_tmpl_input.messages.push_back(
           JsonMessage{{"role", "user"}, {"content", ""}});
       preface_tmpl_input.add_generation_prompt = false;
+
+      if (extra_context.has_value()) {
+        for (const auto& [key, value] : extra_context.value().items()) {
+          preface_tmpl_input.extra_context[key] = value;
+        }
+      }
+
       ASSIGN_OR_RETURN(std::string preface_text,
                        prompt_template.Apply(preface_tmpl_input));
       prefill_text += preface_text;
@@ -417,6 +425,13 @@ Gemma3DataProcessor::RenderSingleTurnTemplate(
         is_first_part || is_role_changed;
     tmpl_input.extra_context["is_last_part"] = is_last_part;
     tmpl_input.add_generation_prompt = !new_is_appending_message;
+
+    if (extra_context.has_value()) {
+      for (const auto& [key, value] : extra_context.value().items()) {
+        tmpl_input.extra_context[key] = value;
+      }
+    }
+
     ASSIGN_OR_RETURN(std::string new_text, prompt_template.Apply(tmpl_input));
     prefill_text += new_text;
   }

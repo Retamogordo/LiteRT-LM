@@ -27,6 +27,7 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include "absl/container/flat_hash_map.h"  // from @com_google_absl
 #include "absl/functional/any_invocable.h"  // from @com_google_absl
 #include "absl/status/status.h"  // from @com_google_absl
 #include "absl/status/statusor.h"  // from @com_google_absl
@@ -459,6 +460,78 @@ TEST_P(ConversationTest, SendSingleMessage) {
               testing::ElementsAre(user_message, assistant_message));
 }
 
+TEST_P(ConversationTest, SendSingleMessageWithExtraContext) {
+  // Set up mock Session.
+  auto mock_session = CreateMockSession();
+  MockSession* mock_session_ptr = mock_session.get();
+  auto mock_engine = CreateMockEngine(std::move(mock_session));
+
+  // Create Conversation and overwrite prompt template.
+  absl::string_view prompt_template = R"jinja(
+{%- if enable_thinking -%}
+<start_of_turn>system
+Thinking enabled.<end_of_turn>
+{% else %}
+<start_of_turn>system
+Thinking disabled.<end_of_turn>
+{%- endif -%}
+{%- for message in messages -%}
+  {{- '<start_of_turn>' + message.role + '\n' -}}
+  {%- if message.content is string -%}
+    {{- message.content + '<end_of_turn>\n' -}}
+  {%- else -%}
+    {{- message.content[0].text + '<end_of_turn>\n' -}}
+  {%- endif -%}
+{%- endfor -%}
+)jinja";
+
+  ASSERT_OK_AND_ASSIGN(
+      auto conversation_config,
+      ConversationConfig::Builder()
+          .SetSessionConfig(session_config_)
+          .SetOverwritePromptTemplate(PromptTemplate(prompt_template))
+          .Build(*mock_engine));
+  ASSERT_OK_AND_ASSIGN(auto conversation,
+                       Conversation::Create(*mock_engine, conversation_config));
+
+  // We will send a single message.
+  JsonMessage user_message = {{"role", "user"}, {"content", "How are you?"}};
+  OptionalArgs optional_args;
+  optional_args.extra_context = absl::flat_hash_map<std::string, std::string>{
+      {"enable_thinking", "true"}};
+
+  absl::string_view expected_input_text =
+      "<start_of_turn>system\nThinking enabled.<end_of_turn>\n"
+      "<start_of_turn>user\n"
+      "How are you?<end_of_turn>\n";
+
+  EXPECT_CALL(*mock_session_ptr,
+              RunPrefill(testing::ElementsAre(
+                  testing::VariantWith<InputText>(testing::Property(
+                      &InputText::GetRawTextString, expected_input_text)))))
+      .WillOnce(testing::Return(absl::OkStatus()));
+  EXPECT_CALL(*mock_session_ptr, RunDecode(testing::_))
+      .WillOnce(
+          testing::Return(Responses(TaskState::kProcessing, {"I am good."})));
+
+  ASSERT_OK_AND_ASSIGN(
+      const Message response,
+      conversation->SendMessage(user_message, std::move(optional_args)));
+
+  JsonMessage assistant_message = nlohmann::ordered_json::parse(R"({
+    "role": "assistant",
+    "content": [
+      {
+        "type": "text",
+        "text": "I am good."
+      }
+    ]
+  })");
+  EXPECT_EQ(std::get<JsonMessage>(response), assistant_message);
+  EXPECT_THAT(conversation->GetHistory(),
+              testing::ElementsAre(user_message, assistant_message));
+}
+
 TEST_P(ConversationTest, SendMultipleMessages) {
   // Set up mock Session.
   auto mock_session = CreateMockSession();
@@ -765,6 +838,94 @@ TEST_P(ConversationTest, SendSingleMessageAsync) {
   auto message_callback = CreateTestMessageCallback(assistant_message, done);
   EXPECT_OK(conversation->SendMessageAsync(user_message,
                                            std::move(message_callback)));
+  done.WaitForNotificationWithTimeout(absl::Seconds(10));
+
+  EXPECT_THAT(
+      conversation->GetHistory(),
+      testing::ElementsAre(user_message, assistant_message_for_confirm));
+}
+
+TEST_P(ConversationTest, SendSingleMessageAsyncWithExtraContext) {
+  // Set up mock Session.
+  auto mock_session = CreateMockSession();
+  MockSession* mock_session_ptr = mock_session.get();
+  auto mock_engine = CreateMockEngine(std::move(mock_session));
+
+  // Create Conversation and overwrite prompt template.
+  absl::string_view prompt_template = R"jinja(
+{%- if enable_thinking -%}
+<start_of_turn>system
+Thinking enabled.<end_of_turn>
+{% else %}
+<start_of_turn>system
+Thinking disabled.<end_of_turn>
+{%- endif -%}
+{%- for message in messages -%}
+  {{- '<start_of_turn>' + message.role + '\n' -}}
+  {%- if message.content is string -%}
+    {{- message.content + '<end_of_turn>\n' -}}
+  {%- else -%}
+    {{- message.content[0].text + '<end_of_turn>\n' -}}
+  {%- endif -%}
+{%- endfor -%}
+)jinja";
+
+  ASSERT_OK_AND_ASSIGN(
+      auto conversation_config,
+      ConversationConfig::Builder()
+          .SetSessionConfig(session_config_)
+          .SetOverwritePromptTemplate(PromptTemplate(prompt_template))
+          .Build(*mock_engine));
+  ASSERT_OK_AND_ASSIGN(auto conversation,
+                       Conversation::Create(*mock_engine, conversation_config));
+
+  // We will send a single message.
+  JsonMessage user_message = {{"role", "user"}, {"content", "How are you?"}};
+  OptionalArgs optional_args;
+  optional_args.extra_context = absl::flat_hash_map<std::string, std::string>{
+      {"enable_thinking", "true"}};
+
+  absl::string_view expected_input_text =
+      "<start_of_turn>system\nThinking enabled.<end_of_turn>\n"
+      "<start_of_turn>user\n"
+      "How are you?<end_of_turn>\n";
+
+  EXPECT_CALL(
+      *mock_session_ptr,
+      RunPrefillAsync(testing::ElementsAre(testing::VariantWith<InputText>(
+                          testing::Property(&InputText::GetRawTextString,
+                                            expected_input_text))),
+                      testing::_))
+      .WillOnce([](const std::vector<InputData>& contents,
+                   absl::AnyInvocable<void(absl::StatusOr<Responses>)>
+                       user_callback) {
+        user_callback(Responses(TaskState::kDone));
+        return nullptr;
+      });
+  EXPECT_CALL(*mock_session_ptr, RunDecodeAsync(testing::_, testing::_))
+      .WillOnce(
+          [](absl::AnyInvocable<void(absl::StatusOr<Responses>)> user_callback,
+             const DecodeConfig& decode_config) {
+            user_callback(
+                Responses(TaskState::kProcessing, {"I am good async."}));
+            user_callback(Responses(TaskState::kDone));
+            return nullptr;
+          });
+
+  Message assistant_message = JsonMessage(nlohmann::ordered_json::parse(R"({
+    "role": "assistant",
+    "content": [
+      {
+        "type": "text",
+        "text": "I am good async."
+      }
+    ]
+  })"));
+  Message assistant_message_for_confirm = assistant_message;
+  absl::Notification done;
+  auto message_callback = CreateTestMessageCallback(assistant_message, done);
+  EXPECT_OK(conversation->SendMessageAsync(
+      user_message, std::move(message_callback), std::move(optional_args)));
   done.WaitForNotificationWithTimeout(absl::Seconds(10));
 
   EXPECT_THAT(
