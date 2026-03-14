@@ -128,13 +128,13 @@ void SetBackendAttr(nb::object& py_engine, const nb::handle& backend_handle) {
 
 // Note: Consider move to C++ API.
 enum class LogSeverity {
-  VERBOSE = 0,
-  DEBUG = 1,
-  INFO = 2,
-  WARNING = 3,
-  ERROR = 4,
-  FATAL = 5,
-  SILENT = 1000,
+  kVerbose = 0,
+  kDebug = 1,
+  kInfo = 2,
+  kWarning = 3,
+  kError = 4,
+  kFatal = 5,
+  kSilent = 1000,
 };
 
 // MessageIterator bridges the asynchronous, callback-based C++ API
@@ -305,13 +305,13 @@ class Benchmark {
 
 NB_MODULE(litert_lm_ext, module) {
   nb::enum_<LogSeverity>(module, "LogSeverity")
-      .value("VERBOSE", LogSeverity::VERBOSE)
-      .value("DEBUG", LogSeverity::DEBUG)
-      .value("INFO", LogSeverity::INFO)
-      .value("WARNING", LogSeverity::WARNING)
-      .value("ERROR", LogSeverity::ERROR)
-      .value("FATAL", LogSeverity::FATAL)
-      .value("SILENT", LogSeverity::SILENT)
+      .value("VERBOSE", LogSeverity::kVerbose)
+      .value("DEBUG", LogSeverity::kDebug)
+      .value("INFO", LogSeverity::kInfo)
+      .value("WARNING", LogSeverity::kWarning)
+      .value("ERROR", LogSeverity::kError)
+      .value("FATAL", LogSeverity::kFatal)
+      .value("SILENT", LogSeverity::kSilent)
       .export_values();
 
   module.def(
@@ -367,25 +367,25 @@ NB_MODULE(litert_lm_ext, module) {
         };
 
         static const std::map<LogSeverity, SeverityMapping> mapping = {
-            {LogSeverity::VERBOSE,
+            {LogSeverity::kVerbose,
              {absl::LogSeverityAtLeast::kInfo, kLiteRtLogSeverityVerbose,
               tflite::TFLITE_LOG_VERBOSE}},
-            {LogSeverity::DEBUG,
+            {LogSeverity::kDebug,
              {absl::LogSeverityAtLeast::kInfo, kLiteRtLogSeverityDebug,
               tflite::TFLITE_LOG_VERBOSE}},
-            {LogSeverity::INFO,
+            {LogSeverity::kInfo,
              {absl::LogSeverityAtLeast::kInfo, kLiteRtLogSeverityInfo,
               tflite::TFLITE_LOG_INFO}},
-            {LogSeverity::WARNING,
+            {LogSeverity::kWarning,
              {absl::LogSeverityAtLeast::kWarning, kLiteRtLogSeverityWarning,
               tflite::TFLITE_LOG_WARNING}},
-            {LogSeverity::ERROR,
+            {LogSeverity::kError,
              {absl::LogSeverityAtLeast::kError, kLiteRtLogSeverityError,
               tflite::TFLITE_LOG_ERROR}},
-            {LogSeverity::FATAL,
+            {LogSeverity::kFatal,
              {absl::LogSeverityAtLeast::kFatal, kLiteRtLogSeverityError,
               tflite::TFLITE_LOG_ERROR}},
-            {LogSeverity::SILENT,
+            {LogSeverity::kSilent,
              {absl::LogSeverityAtLeast::kInfinity, kLiteRtLogSeveritySilent,
               tflite::TFLITE_LOG_SILENT}},
         };
@@ -393,7 +393,7 @@ NB_MODULE(litert_lm_ext, module) {
         auto mapping_it = mapping.find(log_severity);
         const SeverityMapping& severity_mapping =
             (mapping_it != mapping.end()) ? mapping_it->second
-                                          : mapping.at(LogSeverity::SILENT);
+                                          : mapping.at(LogSeverity::kSilent);
 
         absl::SetMinLogLevel(severity_mapping.absl_severity);
         LiteRtSetMinLoggerSeverity(LiteRtGetDefaultLogger(),
