@@ -24,25 +24,30 @@ endif()
 cmake_minimum_required(VERSION 3.25 FATAL_ERROR)
 project(LiteRT-LM LANGUAGES C CXX)
 
-
 # --- Global Paths
 set(PROJECT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
-set(LITERTLM_ROOT_DIR "${PROJECT_ROOT}" CACHE PATH "LiteRT-LM: Root of the LiteRT-LM workspace")
-set(LITERTLM_PACKAGES_DIR "${LITERTLM_ROOT_DIR}/cmake/packages" CACHE PATH "LiteRT-LM: Directory for build packages")
+set(LITERTLM_ROOT_DIR "${PROJECT_ROOT}"
+    CACHE PATH "LiteRT-LM: Root of the LiteRT-LM workspace")
+set(LITERTLM_PACKAGES_DIR "${LITERTLM_ROOT_DIR}/cmake/packages"
+    CACHE PATH "LiteRT-LM: Directory for build packages")
 set(LITERTLM_PATCHES_DIR "${LITERTLM_ROOT_DIR}/cmake/patches"
     CACHE PATH "LiteRT-LM: Directory for build patches")
 set(LITERTLM_MODULES_DIR "${LITERTLM_ROOT_DIR}/cmake/modules"
     CACHE PATH "LiteRT-LM: Modules path, appended to CMAKE_MODULE_PATH")
 set(LITERTLM_SCRIPTS_DIR "${LITERTLM_ROOT_DIR}/cmake/scripts"
     CACHE PATH "LiteRT-LM: Directory for internal build and automation scripts")
-set(LITERTLM_LOCAL_STAGING_DIR "${CMAKE_BINARY_DIR}/staging/lib" CACHE INTERNAL "")
+set(LITERTLM_LOCAL_STAGING_DIR "${CMAKE_BINARY_DIR}/staging/lib"
+    CACHE INTERNAL "")
 file(MAKE_DIRECTORY "${LITERTLM_LOCAL_STAGING_DIR}")
-set(LITERTLM_RUST_TARGET "" CACHE STRING "Rust target triple (e.g., aarch64-linux-android). Leave empty for host.")
+set(LITERTLM_RUST_TARGET ""
+    CACHE STRING
+    "Rust target triple (e.g., aarch64-linux-android). Leave empty for host.")
 set(LITERTLM_RUST_FILES
     "${PROJECT_ROOT}/runtime/components/rust/minijinja_template.rs"
     "${PROJECT_ROOT}/runtime/components/tool_use/rust/parsers.rs"
     CACHE INTERNAL "Rust files to include in the cxx bridge")
-set(LITERTLM_CARGO_TOML "${PROJECT_ROOT}/Cargo.toml" CACHE INTERNAL "Path to LiteRT-LM's Cargo.toml")
+set(LITERTLM_CARGO_TOML "${PROJECT_ROOT}/Cargo.toml"
+    CACHE INTERNAL "Path to LiteRT-LM's Cargo.toml")
 set(LITERTLM_PROTO_FILES
   "${PROJECT_ROOT}/runtime/proto/engine.proto"
   "${PROJECT_ROOT}/runtime/proto/llm_metadata.proto"
@@ -77,7 +82,6 @@ set(LITERTLM_INCLUDE_PATHS
 )
 
 option(_unverified_targets "Builds executables that are still in progress" OFF)
-
 
 # --- Environment
 if(NOT CMAKE_CXX_STANDARD)
@@ -130,7 +134,6 @@ else()
     message(FATAL_ERROR "❌ DEBUG: LITERTLM_DEPS is MISSING!")
 endif()
 
-
 # --- LiteRT-LM Targets
 include("${LITERTLM_MODULES_DIR}/generators.cmake")
 generate_src_files(LITERTLM_CORE_FILES ${ALL_SOURCE_FILES} ${ALL_HEADER_FILES})
@@ -182,25 +185,64 @@ if(TARGET litertlm_local_anchor)
     add_dependencies(litert_lm_main litertlm_local_anchor)
 endif()
 
-target_link_options(litert_lm_main PRIVATE
-  "LINKER:--export-dynamic-symbol=LiteRt*"
-)
-
 target_compile_definitions(litert_lm_main PRIVATE
     ENABLE_HUGGINGFACE_TOKENIZER
     ENABLE_SENTENCEPIECE_TOKENIZER
 )
 
+target_include_directories(litert_lm_main PRIVATE
+    ${LITERTLM_INCLUDE_PATHS}
+)
+
+target_link_options(litert_lm_main PRIVATE
+  "LINKER:--export-dynamic-symbol=LiteRt*"
+)
+
+# --- Toolchain-Specific Linker Flags
+set(_LITERTLM_LINK_MULTIDEF "")
+set(_LITERTLM_LINK_GROUP_START "")
+set(_LITERTLM_LINK_GROUP_END "")
+set(_LITERTLM_LINK_WHOLE_START "")
+set(_LITERTLM_LINK_WHOLE_END "")
+set(_LITERTLM_SYSLIBS "")
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    if(APPLE)
+        # macOS Linker (Mach-O)
+        set(_LITERTLM_LINK_MULTIDEF "-Wl,-multiply_defined,suppress")
+        set(_LITERTLM_LINK_WHOLE_START "-Wl,-all_load")
+        set(_LITERTLM_LINK_WHOLE_END "")
+        set(_LITERTLM_SYSLIBS "-lz" "-lpthread" "-ldl") # No librt on macOS
+    else()
+        # Linux Linker (ELF)
+        set(_LITERTLM_LINK_MULTIDEF "-Wl,--allow-multiple-definition")
+        set(_LITERTLM_LINK_GROUP_START "-Wl,--start-group")
+        set(_LITERTLM_LINK_GROUP_END "-Wl,--end-group")
+        set(_LITERTLM_LINK_WHOLE_START "-Wl,--whole-archive")
+        set(_LITERTLM_LINK_WHOLE_END "-Wl,--no-whole-archive")
+        set(_LITERTLM_SYSLIBS "-lz" "-lrt" "-lpthread" "-ldl")
+    endif()
+elseif(MSVC)
+    # Windows Linker
+    set(_LITERTLM_LINK_MULTIDEF "/FORCE:MULTIPLE")
+    set(_LITERTLM_LINK_WHOLE_START "/WHOLEARCHIVE")
+    set(_LITERTLM_LINK_WHOLE_END "")
+    set(_LITERTLM_SYSLIBS "") # MSVC defaults usually cover this
+endif()
+
 separate_arguments(_LITERTLM_ODML_EXPANDED_LIST NATIVE_COMMAND "${_LITERTLM_ODML_PAYLOAD}")
 separate_arguments(_LITERTLM_CORE_EXPANDED_LIST NATIVE_COMMAND "${_LITERTLM_CORE_PAYLOAD}")
+
 target_link_libraries(litert_lm_main
     PUBLIC
-        "-Wl,--allow-multiple-definition"
-        "-Wl,--start-group"
-        "-Wl,--whole-archive"
+        ${_LITERTLM_LINK_MULTIDEF}
+        ${_LITERTLM_LINK_GROUP_START}
+        ${_LITERTLM_LINK_WHOLE_START}
         ${_LITERTLM_ODML_EXPANDED_LIST}
-        "-Wl,--no-whole-archive"
+        ${_LITERTLM_LINK_WHOLE_END}
+
         ${_LITERTLM_CORE_EXPANDED_LIST}
+
         libpng_lib
         kissfft_lib
         miniaudio_lib
@@ -210,10 +252,7 @@ target_link_libraries(litert_lm_main
         antlr_lib
         LiteRTLM::nlohmann_json::nlohmann_json
         opencl_headers_lib
-        "-lz" "-lrt" "-lpthread" "-ldl"
-        "-Wl,--end-group"
-)
 
-target_include_directories(litert_lm_main PRIVATE
-    ${LITERTLM_INCLUDE_PATHS}
+        ${_LITERTLM_SYSLIBS}
+        ${_LITERTLM_LINK_GROUP_END}
 )

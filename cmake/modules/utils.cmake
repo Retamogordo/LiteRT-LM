@@ -26,7 +26,6 @@ function(verify_install target_name config_path)
     )
 endfunction()
 
-
 function(patch_file_content FILE_PATH MATCH_STR REPLACE_STR IS_REGEX)
     if(EXISTS "${FILE_PATH}")
         file(READ "${FILE_PATH}" CONTENT)
@@ -38,7 +37,6 @@ function(patch_file_content FILE_PATH MATCH_STR REPLACE_STR IS_REGEX)
         file(WRITE "${FILE_PATH}" "${CONTENT}")
     endif()
 endfunction()
-
 
 # --- cmake_checkpoint_target ---
 #
@@ -63,7 +61,6 @@ endfunction()
 #              Default is Directory Scope (standard CMake visibility).
 #   QUIET    : Suppresses status messages.
 #   PROPERTIES: List of properties to apply to the shim.
-
 function(cmake_checkpoint_target TARGET_NAME)
     set(options GLOBAL QUIET)
     set(oneValueArgs TYPE)
@@ -184,11 +181,37 @@ function(setup_external_install_structure prefix_path)
     endforeach()
 endfunction()
 
-
 function(cmake_to_c_bool CMAKE_VAL OUTPUT_VAR)
     if(${CMAKE_VAL})
         set(${OUTPUT_VAR} 1 PARENT_SCOPE)
     else()
         set(${OUTPUT_VAR} 0 PARENT_SCOPE)
+    endif()
+endfunction()
+
+# Note: file(STRINGS) strips blank lines
+function(patch_delete_block TARGET_FILE START_PATTERN END_PATTERN)
+    if(EXISTS "${TARGET_FILE}")
+
+        file(STRINGS "${TARGET_FILE}" FILE_LINES)
+        set(NEW_LINES "")
+        set(IN_BLOCK FALSE)
+
+        foreach(LINE IN LISTS FILE_LINES)
+            if(LINE MATCHES "${START_PATTERN}")
+                set(IN_BLOCK TRUE)
+            endif()
+
+            if(NOT IN_BLOCK)
+                list(APPEND NEW_LINES "${LINE}")
+            endif()
+
+            if(IN_BLOCK AND LINE MATCHES "${END_PATTERN}")
+                set(IN_BLOCK FALSE)
+            endif()
+        endforeach()
+
+        string(REPLACE ";" "\n" NEW_CONTENT "${NEW_LINES}")
+        file(WRITE "${TARGET_FILE}" "${NEW_CONTENT}\n")
     endif()
 endfunction()

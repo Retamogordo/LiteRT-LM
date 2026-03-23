@@ -55,7 +55,7 @@ macro(load_package name)
     if(${${USE_SYSTEM_VAR}})
         find_package(${name} QUIET)
         if(TARGET ${name}::${name} OR TARGET ${name})
-            message(STATUS "[LITERTLM] Resolution: Using SYSTEM ${name} (User Override)")
+            message(STATUS "[LiteRTLM] Resolution: Using SYSTEM ${name} (User Override)")
             set(SHOULD_PROVISION FALSE)
 
             if(TARGET ${name}::${name})
@@ -64,23 +64,46 @@ macro(load_package name)
                 set(actual_target "${name}")
             endif()
 
-            message(STATUS "[LITERTLM] Mapping ${name}_external to existing target")
+            message(STATUS "[LiteRTLM] Mapping ${name}_external to existing target")
             add_dependencies("${name}_external" ${actual_target})
 
         else()
-            message(FATAL_ERROR "[LITERTLM] User set ${USE_SYSTEM_VAR}=ON but ${name} was not found in the environment!")
+            message(FATAL_ERROR "[LiteRTLM] User set ${USE_SYSTEM_VAR}=ON but ${name} was not found in the environment!")
         endif()
 
     elseif(TARGET ${name}::${name} OR TARGET ${name})
-        message(STATUS "[LITERTLM] Resolution: Using PRE-RESOLVED ${name} (Detected in Namespace)")
+        message(STATUS "[LiteRTLM] Resolution: Using PRE-RESOLVED ${name} (Detected in Namespace)")
         set(SHOULD_PROVISION FALSE)
     endif()
 
     if(SHOULD_PROVISION)
-        message(STATUS "[LITERTLM] Resolution: Using INTERNAL build for ${name}")
+        message(STATUS "[LiteRTLM] Resolution: Using INTERNAL build for ${name}")
         include("${LITERTLM_PACKAGES_DIR}/${name}/${name}.cmake")
     endif()
     cmake_checkpoint_target("${name}_external" TYPE CUSTOM QUIET)
+endmacro()
+
+macro(detect_deps_provider dep_name)
+    set(_${name}_user_defined FALSE)
+    set(_${name}_predefined FALSE)
+    set(_${name}_find_package FALSE)
+    set(_${name}_should_provision TRUE)
+
+    string(TOUPPER "${name}" upper_name)
+    if(${USE_SYSTEM_VAR} AND DEFINED LITERTLM_SYSTEM_TARGET_${upper_name} AND TARGET ${LITERTLM_SYSTEM_TARGET_${upper_name}})
+        set(_${name}_user_defined TRUE)
+
+    elseif(TARGET ${name}::${name})
+        set(_${name}_predefined TRUE)
+
+    elseif(${USE_SYSTEM_VAR})
+        find_package(${name} QUIET)
+        if(${name}_FOUND)
+            set(_${name}_find_package TRUE)
+        else()
+            message(FATAL_ERROR "[LiteRT-LM] User requested system ${name}, but find_package failed.")
+        endif()
+    endif()
 endmacro()
 
 macro(literlm_configure_component_interface prefix main_targets dependency_targets include_dirs)
@@ -107,8 +130,6 @@ macro(literlm_configure_component_interface prefix main_targets dependency_targe
         pthread
     )
 endmacro()
-
-
 
 macro(add_litertlm_library target_name lib_type)
     file(RELATIVE_PATH _rel_path "${PROJECT_ROOT}" "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -145,7 +166,6 @@ macro(add_litertlm_library target_name lib_type)
         set_property(GLOBAL APPEND PROPERTY LITERTLM_LOCAL_TARGET_REGISTRY "${target_name}")
     endif()
 endmacro()
-
 
 # TODO(totero): Refactor to remove aggregate logic from macro, and create a
 # linker groups for core dependencies.
