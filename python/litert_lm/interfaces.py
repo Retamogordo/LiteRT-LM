@@ -73,12 +73,16 @@ class AbstractEngine(abc.ABC):
       backend: The hardware backend used for inference.
       max_num_tokens: Maximum number of tokens for the KV cache.
       cache_dir: Directory for caching compiled model artifacts.
+      vision_backend: The hardware backend used for vision encoding.
+      audio_backend: The hardware backend used for audio encoding.
   """
 
   model_path: str
   backend: Backend
   max_num_tokens: int = 4096
   cache_dir: str = ""
+  vision_backend: Backend | None = None
+  audio_backend: Backend | None = None
 
   def __enter__(self) -> AbstractEngine:
     """Initializes the engine resources."""

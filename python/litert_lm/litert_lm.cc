@@ -396,6 +396,8 @@ NB_MODULE(litert_lm_ext, module) {
         SetBackendAttr(py_engine, backend);
         py_engine.attr("max_num_tokens") = max_num_tokens;
         py_engine.attr("cache_dir") = cache_dir;
+        py_engine.attr("vision_backend") = vision_backend;
+        py_engine.attr("audio_backend") = audio_backend;
         return py_engine;
       },
       nb::arg("model_path"), nb::arg("backend") = nb::none(),
