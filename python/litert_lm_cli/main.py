@@ -78,18 +78,24 @@ def convert(source, model_id=None, prefer_current_venv=False, extra_args=()):
   if any(
       m.model_id == effective_model_id for m in model.Model.get_all_models()
   ):
-    print(f"Error: Model ID '{effective_model_id}' already exists.\n")
-    print("Suggestions:")
-    print(
+    click.echo(
+        click.style(
+            f"Error: Model ID '{effective_model_id}' already exists.\n",
+            fg="red",
+            bold=True,
+        )
+    )
+    click.echo("Suggestions:")
+    click.echo(
         "  1. Run the existing model with 'litert-lm run"
         f" {effective_model_id}'."
     )
-    print(
+    click.echo(
         f"  2. Convert again using 'litert-lm convert {effective_model_id}'"
         " with '--model_id=other-model-id' to set a different model ID for"
         " the converted model."
     )
-    print(
+    click.echo(
         "  3. Rename the existing model with 'litert-lm rename"
         f" {effective_model_id} <new_model_id>' and convert the model again."
     )
@@ -114,29 +120,42 @@ def convert(source, model_id=None, prefer_current_venv=False, extra_args=()):
 
   cmd.extend(extra_args)
 
-  print(f"Running: {' '.join(cmd)}")
+  click.echo(click.style(f"Running: {' '.join(cmd)}", fg="cyan"))
   try:
     subprocess.run(cmd, check=True)
   except subprocess.CalledProcessError as e:
-    print(f"Error: Model conversion failed with exit code {e.returncode}.")
-    print("Check the logs above for the specific error message.")
+    click.echo(
+        click.style(
+            f"Error: Model conversion failed with exit code {e.returncode}.",
+            fg="red",
+            bold=True,
+        )
+    )
+    click.echo("Check the logs above for the specific error message.")
     return
 
-  print(f"You can now run the model with 'run {effective_model_id}'")
+  click.echo(
+      click.style(
+          f"You can now run the model with 'run {effective_model_id}'",
+          fg="green",
+      )
+  )
 
 
 @cli.command(name="list")
 def list_models():
   """Lists all imported LiteRT-LM models."""
   base_dir = model.get_converted_models_base_dir()
-  print(f"Listing models in: {base_dir}")
+  click.echo(f"Listing models in: {base_dir}")
 
   models = sorted(model.Model.get_all_models(), key=lambda m: m.model_id)
 
   # Calculate dynamic width for ID column
   id_width = max([len(m.model_id) for m in models] + [len("ID"), 25]) + 2
 
-  print(f"{'ID':<{id_width}} {'SIZE':<15} {'MODIFIED'}")
+  click.echo(
+      click.style(f"{'ID':<{id_width}} {'SIZE':<15} {'MODIFIED'}", bold=True)
+  )
 
   for model_item in models:
     path = model_item.model_path
@@ -154,7 +173,9 @@ def list_models():
       size_str = "Unknown"
       modified_date = "Unknown"
 
-    print(f"{model_item.model_id:<{id_width}} {size_str:<15} {modified_date}")
+    click.echo(
+        f"{model_item.model_id:<{id_width}} {size_str:<15} {modified_date}"
+    )
 
 
 @cli.command(name="import")
@@ -163,7 +184,7 @@ def list_models():
 def import_model(source, ref):
   """Imports a model from a local path."""
   if not os.path.exists(source):
-    print(f"Source file not found: {source}")
+    click.echo(click.style(f"Source file not found: {source}", fg="red"))
     return
 
   model_obj = model.Model.from_model_id(ref)
@@ -173,7 +194,9 @@ def import_model(source, ref):
   os.makedirs(model_dir, exist_ok=True)
 
   shutil.copy(source, model_path)
-  print(f"Successfully imported model to {model_path}")
+  click.echo(
+      click.style(f"Successfully imported model to {model_path}", fg="green")
+  )
 
 
 @cli.command(help="Deletes a model from the local storage.")
@@ -190,9 +213,9 @@ def delete(model_id):
       model.get_converted_models_base_dir()
   ):
     shutil.rmtree(model_dir)
-    print(f"Deleted model: {model_id}")
+    click.echo(click.style(f"Deleted model: {model_id}", fg="green"))
   else:
-    print(f"Model not found: {model_id}")
+    click.echo(click.style(f"Model not found: {model_id}", fg="red"))
 
 
 @cli.command(help="Renames a model.")
@@ -207,12 +230,14 @@ def rename(old_model_id, new_model_id):
   """
   old_model = model.Model.from_model_id(old_model_id)
   if not old_model.exists():
-    print(f"Model not found: {old_model_id}")
+    click.echo(click.style(f"Model not found: {old_model_id}", fg="red"))
     return
 
   new_model = model.Model.from_model_id(new_model_id)
   if new_model.exists():
-    print(f"Target model ID already exists: {new_model_id}")
+    click.echo(
+        click.style(f"Target model ID already exists: {new_model_id}", fg="red")
+    )
     return
 
   old_dir = os.path.dirname(old_model.model_path)
@@ -220,7 +245,11 @@ def rename(old_model_id, new_model_id):
 
   os.makedirs(os.path.dirname(new_dir), exist_ok=True)
   shutil.move(old_dir, new_dir)
-  print(f'Renamed model "{old_model_id}" to "{new_model_id}"')
+  click.echo(
+      click.style(
+          f'Renamed model "{old_model_id}" to "{new_model_id}"', fg="green"
+      )
+  )
 
 
 @cli.command(help="Benchmarks a LiteRT-LM model.")
@@ -356,15 +385,22 @@ def run(
     # and is not a local path.
     parts = model_reference.split("/")
     if len(parts) == 2 and all(parts) and not os.path.exists(model_reference):
-      print(
-          f"Model '{model_reference}' not found. Attempting to convert from"
-          f" https://huggingface.co/{model_reference} ..."
+      click.echo(
+          click.style(
+              f"Model '{model_reference}' not found. Attempting to convert"
+              f" from https://huggingface.co/{model_reference} ...",
+              fg="yellow",
+          )
       )
       convert.callback(source=model_reference)
       model_obj = model.Model.from_model_reference(model_reference)
 
     if not model_obj.exists():
-      print(f"Failed to find or convert model '{model_reference}'.")
+      click.echo(
+          click.style(
+              f"Failed to find or convert model '{model_reference}'.", fg="red"
+          )
+      )
       return
 
   model_obj.run_interactive(

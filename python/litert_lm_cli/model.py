@@ -23,6 +23,8 @@ import os
 import pathlib
 import readline  # pylint: disable=unused-import
 import traceback
+
+import click
 import litert_lm
 
 try:
@@ -37,14 +39,14 @@ except ImportError:
 
 def load_preset(preset: str):
   """Loads a preset file and returns the tools, messages and extra_context."""
-  print(f"Loading preset from {preset}:")
+  click.echo(click.style(f"Loading preset from {preset}:", fg="cyan"))
   if not os.path.exists(preset):
-    print(f"Preset file not found: {preset}")
+    click.echo(click.style(f"Preset file not found: {preset}", fg="red"))
     return None, None, None
 
   spec = importlib.util.spec_from_file_location("user_tools", preset)
   if not spec or not spec.loader:
-    print(f"Failed to load tools from {preset}")
+    click.echo(click.style(f"Failed to load tools from {preset}", fg="red"))
     return None, None, None
 
   user_tools = importlib.util.module_from_spec(spec)
@@ -61,26 +63,25 @@ def load_preset(preset: str):
   messages = None
   system_instruction = getattr(user_tools, "system_instruction", None)
   if system_instruction:
-    print(f"- System instruction: {system_instruction}")
+    click.echo(
+        click.style(f"- System instruction: {system_instruction}", fg="cyan")
+    )
     messages = [{
         "role": "system",
         "content": [{"type": "text", "text": system_instruction}],
     }]
 
-  print("- Tools:")
+  click.echo(click.style("- Tools:", fg="cyan"))
   for tool in tools:
-    print(f"  - {getattr(tool, "__name__", str(tool))}")
+    click.echo(
+        click.style(f"  - {getattr(tool, '__name__', str(tool))}", fg="cyan")
+    )
 
   extra_context = getattr(user_tools, "extra_context", None)
   if extra_context:
-    print(f"- Extra context: {extra_context}")
+    click.echo(click.style(f"- Extra context: {extra_context}", fg="cyan"))
 
   return tools, messages, extra_context
-
-
-_GREEN = "\033[92m"
-_BLUE = "\033[94m"
-_RESET = "\033[0m"
 
 
 class LoggingToolEventHandler(litert_lm.ToolEventHandler):
@@ -92,14 +93,20 @@ class LoggingToolEventHandler(litert_lm.ToolEventHandler):
   def approve_tool_call(self, tool_call):
     """Logs a tool call."""
     if self.model.active_channel is not None:
-      print(f"\n{_RESET}", end="", flush=True)
+      click.echo("\n", nl=False)
       self.model.active_channel = None
-    print(f"{_GREEN}[tool_call] {json.dumps(tool_call['function'])}{_RESET}")
+    click.echo(
+        click.style(
+            f"[tool_call] {json.dumps(tool_call['function'])}", fg="green"
+        )
+    )
     return True
 
   def process_tool_response(self, tool_response):
     """Logs a tool response."""
-    print(f"{_GREEN}[tool_response] {json.dumps(tool_response)}{_RESET}")
+    click.echo(
+        click.style(f"[tool_response] {json.dumps(tool_response)}", fg="green")
+    )
     return tool_response
 
 
@@ -151,11 +158,16 @@ class Model:
       prompt: A single prompt to run once and exit.
     """
     if not self.exists():
-      print(f"Could not find {self.to_str()} locally in {self.model_path}.")
+      click.echo(
+          click.style(
+              f"Could not find {self.to_str()} locally in {self.model_path}.",
+              fg="red",
+          )
+      )
       return
 
     if not prompt:
-      print(f"Loading model {self.to_str()}...")
+      click.echo(click.style(f"Loading model {self.to_str()}...", fg="cyan"))
     try:
       backend_val = _parse_backend(backend)
 
@@ -189,9 +201,12 @@ class Model:
           self._execute_prompt(conversation, prompt)
           return
 
-        print(
-            "Model loaded. Type your prompts and press Enter. Type 'exit' to"
-            " quit."
+        click.echo(
+            click.style(
+                "Model loaded. Type your prompts and press Enter. Type 'exit'"
+                " to quit.",
+                fg="cyan",
+            )
         )
 
         while True:
@@ -208,16 +223,16 @@ class Model:
             break
           except KeyboardInterrupt:
             # Catch Ctrl+C at the input prompt
-            print()
+            click.echo()
             continue
           except Exception:  # pylint: disable=broad-exception-caught
-            print("Error during inference")
+            click.echo(click.style("Error during inference", fg="red"))
             traceback.print_exc()
 
-        print("Model closed.")
+        click.echo("Model closed.")
 
     except Exception:  # pylint: disable=broad-exception-caught
-      print("An error occurred")
+      click.echo(click.style("An error occurred", fg="red"))
       traceback.print_exc()
 
   def _execute_prompt(self, conversation, prompt):
@@ -231,30 +246,30 @@ class Model:
         for item in content_list:
           if item.get("type") == "text":
             if self.active_channel is not None:
-              print(f"\n{_RESET}", end="", flush=True)
+              click.echo()
               self.active_channel = None
-            print(item.get("text", ""), end="", flush=True)
+            click.echo(item.get("text", ""), nl=False)
 
         # Handle channels
         channels = chunk.get("channels", {})
         for channel_name, channel_content in channels.items():
           if self.active_channel != channel_name:
             if self.active_channel is not None:
-              print(f"\n{_RESET}", end="", flush=True)
-            print(f"{_BLUE}[{channel_name}] ", end="", flush=True)
+              click.echo()
+            click.echo(click.style(f"[{channel_name}] ", fg="blue"), nl=False)
             self.active_channel = channel_name
-          print(channel_content, end="", flush=True)
+          click.echo(channel_content, nl=False)
       if self.active_channel is not None:
-        print(_RESET)
+        click.echo()
       else:
-        print()
+        click.echo()
     except KeyboardInterrupt:
       conversation.cancel_process()
       # Empty the iterator queue.
       # This ensures we don't throw away StopIteration.
       for _ in stream:
         pass
-      print("\n[Generation cancelled]")
+      click.echo(click.style("\n[Generation cancelled]", fg="yellow"))
 
   def benchmark(
       self,
@@ -272,7 +287,12 @@ class Model:
       backend: The backend to use (cpu or gpu).
     """
     if not self.exists():
-      print(f"Could not find {self.to_str()} locally in {self.model_path}.")
+      click.echo(
+          click.style(
+              f"Could not find {self.to_str()} locally in {self.model_path}.",
+              fg="red",
+          )
+      )
       return
 
     try:
@@ -297,31 +317,31 @@ class Model:
             cache_dir=":nocache",
         )
 
-      print(f"Benchmarking model: {self.to_str()} ({self.model_path})")
-      print(f"Number of tokens in prefill: {prefill_tokens}")
-      print(f"Number of tokens in decode : {decode_tokens}")
-      print(f"Backend                    : {backend}")
+      click.echo(f"Benchmarking model: {self.to_str()} ({self.model_path})")
+      click.echo(f"Number of tokens in prefill: {prefill_tokens}")
+      click.echo(f"Number of tokens in decode : {decode_tokens}")
+      click.echo(f"Backend                    : {backend}")
       if is_android:
-        print("Target                     : Android")
+        click.echo("Target                     : Android")
 
       result = benchmark_obj.run()
 
-      print("----- Results -----")
-      print(
+      click.echo("----- Results -----")
+      click.echo(
           f"Prefill speed:        {result.last_prefill_tokens_per_second:.2f}"
           " tokens/s"
       )
-      print(
+      click.echo(
           f"Decode speed:         {result.last_decode_tokens_per_second:.2f}"
           " tokens/s"
       )
-      print(f"Init time:            {result.init_time_in_second:.4f} s")
-      print(
+      click.echo(f"Init time:            {result.init_time_in_second:.4f} s")
+      click.echo(
           f"Time to first token:  {result.time_to_first_token_in_second:.4f} s"
       )
 
     except Exception:  # pylint: disable=broad-exception-caught
-      print("An error occurred during benchmarking")
+      click.echo(click.style("An error occurred during benchmarking", fg="red"))
       traceback.print_exc()
 
   @classmethod

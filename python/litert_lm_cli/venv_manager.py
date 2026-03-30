@@ -19,6 +19,8 @@ import shutil
 import subprocess
 import sys
 
+import click
+
 
 class VenvManager:
   """Manages the virtual environment paths and binaries."""
@@ -51,7 +53,11 @@ class VenvManager:
           f"Virtual environment directory not found: {self.venv_dir}"
       )
 
-    print(f"Creating virtual environment in {self.venv_dir}...")
+    click.echo(
+        click.style(
+            f"Creating virtual environment in {self.venv_dir}...", fg="cyan"
+        )
+    )
     os.makedirs(os.path.dirname(self.venv_dir), exist_ok=True)
     python_exe = sys.executable or "python3"
     subprocess.run([python_exe, "-m", "venv", self.venv_dir], check=True)
@@ -68,7 +74,11 @@ class VenvManager:
       return
 
     if os.path.exists(self.venv_dir):
-      print(f"Deleting virtual environment in {self.venv_dir}...")
+      click.echo(
+          click.style(
+              f"Deleting virtual environment in {self.venv_dir}...", fg="cyan"
+          )
+      )
       shutil.rmtree(self.venv_dir)
 
     self.ensure_venv()
@@ -81,7 +91,7 @@ class VenvManager:
     self.ensure_venv()
 
     if binary_path == self.pip_bin:
-      print("Ensuring pip is installed...")
+      click.echo(click.style("Ensuring pip is installed...", fg="cyan"))
       subprocess.run(
           [
               self.python_bin,
@@ -93,7 +103,11 @@ class VenvManager:
       )
     elif binary_path == self.uv_bin:
       self.ensure_binary(self.pip_bin)
-      print("Installing uv into the virtual environment...")
+      click.echo(
+          click.style(
+              "Installing uv into the virtual environment...", fg="cyan"
+          )
+      )
       subprocess.run(
           [
               self.pip_bin,
@@ -106,7 +120,7 @@ class VenvManager:
       )
     elif binary_path == self.litert_torch_bin:
       self.ensure_binary(self.uv_bin)
-      print("Installing litert-torch with uv...")
+      click.echo(click.style("Installing litert-torch with uv...", fg="cyan"))
       subprocess.run(
           [
               self.uv_bin,

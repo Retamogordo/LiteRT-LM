@@ -40,6 +40,7 @@ pytype_strict_library(
     srcs = ["model.py"],
     deps = [
         "//python/litert_lm",
+        requirement("click"),
     ],
     imports = [".."],
 )
@@ -66,6 +67,7 @@ py_test(
 pytype_strict_library(
     name = "venv_manager",
     srcs = ["venv_manager.py"],
+    deps = [requirement("click")],
     imports = [".."],
 )
 
