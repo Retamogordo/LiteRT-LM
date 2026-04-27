@@ -1,0 +1,8 @@
+ [workspace]
+ resolver = "2"
+ members = [
+   "litert_lm_sys",
+   "litert_lm",
+   "poc",
+ ]
+

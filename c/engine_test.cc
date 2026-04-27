@@ -699,9 +699,7 @@ TEST(EngineCTest, ConversationSendMessage) {
       "litert_lm/runtime/testdata/test_lm_new_metadata.task");
 
   EngineSettingsPtr settings(
-      litert_lm_engine_settings_create(task_path.c_str(), "cpu",
-                                       /* vision_backend_str */ nullptr,
-                                       /* audio_backend_str */ nullptr),
+      litert_lm_engine_settings_create(task_path.c_str(), "cpu", nullptr, nullptr),
       &litert_lm_engine_settings_delete);
   ASSERT_NE(settings, nullptr);
   litert_lm_engine_settings_set_max_num_tokens(settings.get(), 16);
@@ -711,22 +709,114 @@ TEST(EngineCTest, ConversationSendMessage) {
   ASSERT_NE(engine, nullptr);
 
   ConversationPtr conversation(
-      litert_lm_conversation_create(engine.get(),
-                                    /*conversation_config=*/nullptr),
+      litert_lm_conversation_create(engine.get(), nullptr),
       &litert_lm_conversation_delete);
   ASSERT_NE(conversation, nullptr);
 
   const char* message_json =
       R"({"role": "user", "content": [{"type": "text", "text": "Hello"}]})";
   JsonResponsePtr response(
-      litert_lm_conversation_send_message(conversation.get(), message_json,
-                                          /*extra_context=*/nullptr),
+      litert_lm_conversation_send_message(conversation.get(), message_json, nullptr),
       &litert_lm_json_response_delete);
   ASSERT_NE(response, nullptr);
 
   const char* response_str = litert_lm_json_response_get_string(response.get());
   ASSERT_NE(response_str, nullptr);
   EXPECT_GT(strlen(response_str), 0);
+}
+
+TEST(EngineCTest, ConversationSendMessageWithStringContent) {
+
+  const std::string task_path = GetTestdataPath(
+      "litert_lm/runtime/testdata/gemma-4-E2B-it.litertlm");
+
+  EngineSettingsPtr settings(
+      litert_lm_engine_settings_create(task_path.c_str(), "cpu", nullptr, nullptr),
+      &litert_lm_engine_settings_delete);
+  ASSERT_NE(settings, nullptr);
+  litert_lm_engine_settings_set_max_num_tokens(settings.get(), 650);
+
+  EnginePtr engine(litert_lm_engine_create(settings.get()),
+                   &litert_lm_engine_delete);
+  ASSERT_NE(engine, nullptr);
+
+  ConversationPtr conversation(
+      litert_lm_conversation_create(engine.get(), nullptr),
+      &litert_lm_conversation_delete);
+  ASSERT_NE(conversation, nullptr);
+
+  const char* message_json =
+      R"({"role": "user", "content": "Please introduce yourself."})";
+  JsonResponsePtr response(
+      litert_lm_conversation_send_message(conversation.get(), message_json, nullptr),
+      &litert_lm_json_response_delete);
+  ASSERT_NE(response, nullptr);
+
+  const char* response_str = litert_lm_json_response_get_string(response.get());
+  ASSERT_NE(response_str, nullptr);
+  EXPECT_GT(strlen(response_str), 0);
+
+  printf("response_str: %s\n", response_str);
+
+  const char* message_json1 =
+  R"({"role": "user", "content": "write a Counter smart contract in Solidity."})";
+JsonResponsePtr response1(
+  litert_lm_conversation_send_message(conversation.get(), message_json1, nullptr),
+  &litert_lm_json_response_delete);
+
+  ASSERT_NE(response1, nullptr);
+
+  const char* response_str1 = litert_lm_json_response_get_string(response1.get());
+  ASSERT_NE(response_str1, nullptr);
+  EXPECT_GT(strlen(response_str1), 0);
+
+  printf("response_str1: %s\n", response_str1);
+
+  const char* message_json2 =
+  R"({"role": "user", "content": "write a Foundry test for it."})";
+JsonResponsePtr response2(
+  litert_lm_conversation_send_message(conversation.get(), message_json2, nullptr),
+  &litert_lm_json_response_delete);
+
+  ASSERT_NE(response2, nullptr);
+
+  const char* response_str2 = litert_lm_json_response_get_string(response2.get());
+  ASSERT_NE(response_str2, nullptr);
+  EXPECT_GT(strlen(response_str2), 0);
+
+  printf("response_str2: %s\n", response_str2);
+
+  const char* message_json3 =
+  R"({"role": "user", "content": "what is your name?"})";
+JsonResponsePtr response3(
+  litert_lm_conversation_send_message(conversation.get(), message_json3, nullptr),
+  &litert_lm_json_response_delete);
+
+  ASSERT_NE(response3, nullptr);
+
+  const char* response_str3 = litert_lm_json_response_get_string(response3.get());
+  ASSERT_NE(response_str3, nullptr);
+  EXPECT_GT(strlen(response_str3), 0);
+
+  printf("response_str3: %s\n", response_str3);
+
+  const char* message_json4 =
+  R"({"role": "user", "content": "what is your name?"})";
+JsonResponsePtr response4(
+  litert_lm_conversation_send_message(conversation.get(), message_json4, nullptr),
+  &litert_lm_json_response_delete);
+
+  const char* message_json5 =
+  R"({"role": "user", "content": "what is your name?"})";
+JsonResponsePtr response5(
+  litert_lm_conversation_send_message(conversation.get(), message_json5, nullptr),
+  &litert_lm_json_response_delete);
+
+  const char* message_json6 =
+  R"({"role": "user", "content": "what is your name?"})";
+JsonResponsePtr response6(
+  litert_lm_conversation_send_message(conversation.get(), message_json6, nullptr),
+  &litert_lm_json_response_delete);
 }
 
 TEST(EngineCTest, ConversationSendMessageWithConfig) {

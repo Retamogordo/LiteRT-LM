@@ -1,2 +1,18 @@
 /MODULE.bazel.lock
 /bazel-*
+.bazel_*
+.bazel-repo-cache
+.bazelisk-cache
+.bazelisk*
+bazelisk
+
+target
+
+# LLVM raw profile / coverage data
+*.profraw
+*.profdata
+
+# models
+model
+fake_gemma*
+*.litertlm

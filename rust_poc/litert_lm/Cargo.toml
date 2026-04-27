@@ -1,0 +1,11 @@
+ [package]
+ name = "litert_lm"
+ version = "0.1.0"
+ edition = "2021"
+ publish = false
+
+ [dependencies]
+ anyhow = "1"
+ litert_lm_sys = { path = "../litert_lm_sys" }
+serde_json = "1"
+

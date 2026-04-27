@@ -1,0 +1,9 @@
+ [package]
+ name = "litert_lm_sys"
+ version = "0.1.0"
+ edition = "2021"
+ publish = false
+
+ [dependencies]
+ libloading = "0.8"
+
